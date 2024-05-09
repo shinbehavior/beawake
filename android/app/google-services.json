@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "245986508663",
+    "project_id": "beawake-a1aa6",
+    "storage_bucket": "beawake-a1aa6.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:245986508663:android:055efa1bd1572078a4ab72",
+        "android_client_info": {
+          "package_name": "com.example.beawake"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6OyTykC28lRr9f6XBafEdM9NuP_OjsBo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
