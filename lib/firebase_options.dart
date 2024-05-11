@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'beawake-a1aa6.appspot.com',
     measurementId: 'G-2XSCW7T5DR',
   );
+
 }

@@ -7,7 +7,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Awake/Sleep Tracker")),
+      appBar: AppBar(title: Text("Awake/Sleep")),
       body: Column(
         children: [
           ButtonBar(
