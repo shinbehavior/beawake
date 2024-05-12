@@ -1,3 +1,4 @@
+import 'package:beawake/widgets/toggle_main_button.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/event_manager.dart';
@@ -9,23 +10,10 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text("Awake/Sleep")),
       body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ButtonBar(
-            alignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: () => Provider.of<EventManager>(context, listen: false).addEvent('awake'),
-                child: Text('I\'m Awake'),
-              ),
-              ElevatedButton(
-                onPressed: () => Provider.of<EventManager>(context, listen: false).addEvent('sleep'),
-                child: Text('I\'m Sleep'),
-              ),
-            ],
-          ),
-          Expanded( // This widget is now moved under the ButtonBar
-            child: EventList(),
-          ),
+          AnimatedToggleButton(),
+          Expanded(child: EventList()),
         ],
       ),
     );

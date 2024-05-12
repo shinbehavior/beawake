@@ -1,20 +1,20 @@
 class Event {
   final String type; // 'awake' or 'sleep'
-  final DateTime timestamp;
+  final String timestamp;
 
   Event(this.type, this.timestamp);
 
   Map<String, dynamic> toJson() {
     return {
       'type': type,
-      'timestamp': timestamp.toIso8601String(),
+      'timestamp': timestamp,
     };
   }
 
   static Event fromJson(Map<String, dynamic> json) {
     return Event(
       json['type'],
-      DateTime.parse(json['timestamp']),
+      json['timestamp'] as String,
     );
   }
 }
