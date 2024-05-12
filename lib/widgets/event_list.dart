@@ -10,7 +10,7 @@ class EventList extends StatelessWidget {
         return ListView.builder(
           itemCount: manager.events.length,
           itemBuilder: (context, index) {
-            final event = manager.events[index];
+            final event = manager.events.reversed.toList()[index];
             return ListTile(
               title: Text('${event.type} at ${event.timestamp}'),
             );
