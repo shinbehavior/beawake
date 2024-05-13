@@ -4,9 +4,12 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class SignInButton extends StatelessWidget {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final void Function(User) onSignInSuccess;
+
+  SignInButton({required this.onSignInSuccess});
 
   Future<void> signInWithApple() async {
-    try { 
+    try {
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
@@ -17,8 +20,12 @@ class SignInButton extends StatelessWidget {
         idToken: appleCredential.identityToken,
         accessToken: appleCredential.authorizationCode,
       );
-      await _auth.signInWithCredential(oauthCredential);
-      //Navigate to home screen or handle sign in success
+      UserCredential userCredential = await _auth.signInWithCredential(oauthCredential);
+      User? user = userCredential.user;
+
+      if (user != null) {
+        onSignInSuccess(user);
+      }
     } catch (e) {
       // Handle errors or cancellation
     }
