@@ -1,26 +1,38 @@
-import 'package:beawake/providers/event_manager.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// lib/widgets/toggle_main_button.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:beawake/providers/event_manager.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AnimatedToggleButton extends StatefulWidget {
-  const AnimatedToggleButton({super.key});
+  const AnimatedToggleButton({Key? key}) : super(key: key);
+
   @override
   _AnimatedToggleButtonState createState() => _AnimatedToggleButtonState();
 }
 
-class _AnimatedToggleButtonState extends State<AnimatedToggleButton> {
-  bool isAwake = true; // Initial state of the button
+class _AnimatedToggleButtonState extends State<AnimatedToggleButton> with SingleTickerProviderStateMixin {
+  bool isAwake = true;
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
     FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true);
-    initIsAwake(); 
+    initIsAwake();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
   }
 
   void initIsAwake() async {
-    // Example: Assuming getLastEvent returns the last event type
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       String lastEventType = await Provider.of<EventManager>(context, listen: false).getLastEvent();
       setState(() {
@@ -29,45 +41,72 @@ class _AnimatedToggleButtonState extends State<AnimatedToggleButton> {
     });
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () async {
-        print("Current state: $isAwake");
-        String eventType = isAwake ? 'sleep' : 'awake';
-        bool success = await Provider.of<EventManager>(context, listen: false).addEvent(eventType);
-        if (success) {
-          setState((){
-            isAwake = !isAwake;
-            print("State toggled to: $isAwake");
-          });
-        } else {
-          setState(() {
-            isAwake = !isAwake;
-            print("State forcibly toggled due to error handling.");
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Invalid transition: Can't toggle $eventType consecutively."))
-          );
-        }
-      },
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 500), // Animation duration
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          color: isAwake ? Colors.orange[300] : Colors.blue[900], // Background color change
-          borderRadius: BorderRadius.circular(50), // Circular button
-        ),
-        child: Center(
-          child: isAwake 
-            ? Icon(Icons.wb_sunny, size: 60, color: Colors.white) // Sun icon
-            : Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(Icons.nightlight_round, size: 60, color: Colors.white),
-                Icon(Icons.star, size:20, color: Colors.yellow[600],),
-              ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0), // Add padding around the button
+        child: GestureDetector(
+          onTapDown: (_) {
+            _controller.forward();
+          },
+          onTapUp: (_) async {
+            _controller.reverse();
+            String eventType = isAwake ? 'sleep' : 'awake';
+            bool success = await Provider.of<EventManager>(context, listen: false).addEvent(eventType);
+            if (success) {
+              setState(() {
+                isAwake = !isAwake;
+              });
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Invalid transition: Can't toggle $eventType consecutively.")),
+              );
+            }
+          },
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isAwake ? [Colors.orange[300]!, Colors.orange[500]!] : [Colors.blue[700]!, Colors.blue[900]!],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+                borderRadius: BorderRadius.circular(75),
+              ),
+              child: Center(
+                child: isAwake
+                    ? Icon(Icons.wb_sunny, size: 80, color: Colors.white)
+                    : Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(Icons.nightlight_round, size: 80, color: Colors.white),
+                          Positioned(
+                            top: 20,
+                            child: Icon(Icons.star, size: 20, color: Colors.yellow[600]),
+                          ),
+                        ],
+                      ),
+              ),
             ),
+          ),
         ),
       ),
     );

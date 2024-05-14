@@ -1,73 +1,100 @@
-import 'package:beawake/screens/sign_in_screen.dart';
+// lib/app.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:beawake/screens/home_screen.dart';
 import 'package:beawake/screens/friends_screen.dart';
-import 'package:flutter/widgets.dart';
+import 'package:beawake/screens/sign_up_screen.dart';
+import 'package:beawake/screens/stats_screen.dart';
+
+void main() => runApp(const MyApp());
 
 class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
   _MyAppState createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
   int _currentIndex = 0;
-  final List<Widget> _children = [];
+  bool _skipSignUp = false;
+  final List<Widget> _children = [
+    HomeScreen(),
+    StatsScreen(),
+    FriendsScreen(),
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _checkLoginStatus();
-  }
-
-  void _checkLoginStatus() {
-    var auth = FirebaseAuth.instance;
-    auth.authStateChanges().listen((User? user) {
-      print("Auth state changed, user: $user");
-      if (user == null) {
-        setState(() {
-          _children.clear();
-          _children.add(SignInScreen());
-          print("No user found, showing SigninScreen");
-        });
-      } else {
-        setState(() {
-          _children..clear()
-                   ..add(HomeScreen())
-                   ..add(FriendsScreen());
-          print("User logged in, showing HomeScreen and FriendsScreen");
-        });
-      }
+  void onTabTapped(int index) {
+    setState(() {
+      _currentIndex = index;
     });
   }
 
-  void onTabTapped(int index) {
-    print("Tab tapped: $index");
+  void _skipRegistration() {
     setState(() {
-      _currentIndex = index;
-      print("Current index set to: $_currentIndex");
+      _skipSignUp = true;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    print("Building Scaffold with current index: $_currentIndex");
-    print("Children count: ${_children.length}");
     return MaterialApp(
-      home: Scaffold(
-        key: ValueKey<int>(_children.length),
-        body: IndexedStack(
-          index: _currentIndex,
-          children: _children,
+      theme: ThemeData(
+        primaryColor: const Color(0xFF1E1E2C),
+        scaffoldBackgroundColor: const Color(0xFF1E1E2C),
+        appBarTheme: const AppBarTheme(
+          color: Color(0xFF2C2C38),
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        bottomNavigationBar: _children.length > 1 ? BottomNavigationBar(
-          onTap: onTabTapped,
-          currentIndex: _currentIndex,
-          items: [
-            BottomNavigationBarItem(icon: Icon(Icons.superscript), label: "Main"),
-            BottomNavigationBarItem(icon: Icon(Icons.people), label: "Friends"),
-          ],
-        ) : null,
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Color(0xFF2C2C38),
+          selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.grey,
+        ),
+        textTheme: const TextTheme(
+          bodyText1: TextStyle(color: Colors.white),
+          bodyText2: TextStyle(color: Colors.white70),
+        ),
+      ),
+      home: _skipSignUp
+          ? _buildMainScreen()
+          : StreamBuilder<User?>(
+              stream: FirebaseAuth.instance.authStateChanges(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasData) {
+                  return _buildMainScreen();
+                } else {
+                  return SignUpScreen(onSkip: _skipRegistration);
+                }
+              },
+            ),
+    );
+  }
+
+  Widget _buildMainScreen() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("beawake"),
+        centerTitle: true,
+      ),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _children,
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        onTap: onTabTapped,
+        currentIndex: _currentIndex,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: "Stats"), // Add Stats tab
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: "Friends"),
+        ],
       ),
     );
   }
