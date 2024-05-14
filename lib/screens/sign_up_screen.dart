@@ -1,3 +1,4 @@
+// lib/screens/sign_up_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:beawake/services/firebase_service.dart';
@@ -18,6 +19,11 @@ class SignUpScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    List<Map<String, String>> mockUsers = [
+      {"id": "mockUser1Id", "name": "Mock User 1"},
+      {"id": "mockUser2Id", "name": "Mock User 2"},
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Sign Up'),
@@ -34,6 +40,18 @@ class SignUpScreen extends StatelessWidget {
               onPressed: onSkip,
               child: Text('Skip'),
             ),
+            SizedBox(height: 20),
+            Text("Select Mock User for Testing:"),
+            for (var mockUser in mockUsers)
+              ElevatedButton(
+                onPressed: () async {
+                  await _firebaseService.createMockUsers();
+                  // Simulate user sign-in with mock user
+                  // Use mockUser["id"] to simulate the Firebase Auth UID
+                  _navigateToHome(context, null);
+                },
+                child: Text(mockUser["name"]!),
+              ),
           ],
         ),
       ),

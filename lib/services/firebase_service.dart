@@ -2,6 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:beawake/utils/friend_code.dart';  // Import CodeGenerator
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -30,7 +31,7 @@ class FirebaseService {
           await _firestore.collection('users').doc(firebaseUser.uid).set({
             'email': appleIdCredential.email,
             'fullName': '${appleIdCredential.givenName} ${appleIdCredential.familyName}',
-            'friendCode': _generateFriendCode(),
+            'friendCode': await _generateUniqueFriendCode(),
             'friends': [],
           });
         }
@@ -42,8 +43,21 @@ class FirebaseService {
     }
   }
 
-  String _generateFriendCode() {
-    return DateTime.now().millisecondsSinceEpoch.toString();
+  Future<String> _generateUniqueFriendCode() async {
+    String code = '';
+    bool isUnique = false;
+
+    while (!isUnique) {
+      code = CodeGenerator.generateCode(8);
+      isUnique = await _checkCodeUnique(code);
+    }
+
+    return code;
+  }
+
+  Future<bool> _checkCodeUnique(String code) async {
+    QuerySnapshot snapshot = await _firestore.collection('users').where('friendCode', isEqualTo: code).get();
+    return snapshot.docs.isEmpty;
   }
 
   Future<void> updateUserProfile(String userId, String username, bool skipAvatar) async {
@@ -77,5 +91,23 @@ class FirebaseService {
     } else {
       throw Exception('No user found with this friend code');
     }
+  }
+
+  Future<void> createMockUsers() async {
+    await _firestore.collection('users').doc('mockUser1Id').set({
+      'email': 'mockuser1@example.com',
+      'fullName': 'Mock User 1',
+      'friendCode': await _generateUniqueFriendCode(),
+      'friends': [],
+    });
+
+    await _firestore.collection('users').doc('mockUser2Id').set({
+      'email': 'mockuser2@example.com',
+      'fullName': 'Mock User 2',
+      'friendCode': await _generateUniqueFriendCode(),
+      'friends': [],
+    });
+
+    // Add more mock users as needed
   }
 }
