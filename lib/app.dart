@@ -18,11 +18,14 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   int _currentIndex = 0;
   bool _skipSignUp = false;
-  final List<Widget> _children = [
-    HomeScreen(),
-    StatsScreen(),
-    FriendsScreen(),
-  ];
+  String? _userId;
+  late List<Widget> _children;
+
+  @override
+  void initState() {
+    super.initState();
+    _children = [];
+  }
 
   void onTabTapped(int index) {
     setState(() {
@@ -33,7 +36,32 @@ class _MyAppState extends State<MyApp> {
   void _skipRegistration() {
     setState(() {
       _skipSignUp = true;
+      _userId = "skipUser"; // Use a placeholder ID for skipped users
+      _initializeChildren();
     });
+  }
+
+  void _selectMockUser(String mockUserId) {
+    setState(() {
+      _skipSignUp = true;
+      _userId = mockUserId; // Use the mock user ID
+      _initializeChildren();
+    });
+  }
+
+  void _setUserId(String userId) {
+    setState(() {
+      _userId = userId;
+      _initializeChildren();
+    });
+  }
+
+  void _initializeChildren() {
+    _children = [
+      HomeScreen(userId: _userId!),
+      const StatsScreen(),
+      FriendsScreen(userId: _userId!),
+    ];
   }
 
   @override
@@ -68,9 +96,13 @@ class _MyAppState extends State<MyApp> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 } else if (snapshot.hasData) {
+                  _setUserId(snapshot.data!.uid);
                   return _buildMainScreen();
                 } else {
-                  return SignUpScreen(onSkip: _skipRegistration);
+                  return SignUpScreen(
+                    onSkip: _skipRegistration,
+                    onSelectMockUser: _selectMockUser,
+                  );
                 }
               },
             ),
@@ -92,7 +124,7 @@ class _MyAppState extends State<MyApp> {
         currentIndex: _currentIndex,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: "Stats"), // Add Stats tab
+          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: "Stats"),
           BottomNavigationBarItem(icon: Icon(Icons.people), label: "Friends"),
         ],
       ),

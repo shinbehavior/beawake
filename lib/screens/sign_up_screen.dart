@@ -1,57 +1,62 @@
 // lib/screens/sign_up_screen.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:beawake/services/firebase_service.dart';
 import 'home_screen.dart';
 import 'package:beawake/widgets/sign_in_button.dart';
 
-class SignUpScreen extends StatelessWidget {
-  final FirebaseService _firebaseService = FirebaseService();
+class SignUpScreen extends StatefulWidget {
   final VoidCallback onSkip;
+  final Function(String) onSelectMockUser;
 
-  SignUpScreen({required this.onSkip});
+  SignUpScreen({required this.onSkip, required this.onSelectMockUser});
 
-  void _navigateToHome(BuildContext context, User? user) {
+  @override
+  _SignUpScreenState createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends State<SignUpScreen> {
+  final FirebaseService _firebaseService = FirebaseService();
+
+  void _navigateToHome(String userId) {
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => HomeScreen()),
+      MaterialPageRoute(
+        builder: (context) => HomeScreen(userId: userId),
+      ),
     );
+  }
+
+  void _selectMockUser() {
+    widget.onSelectMockUser("mockUser1Id");
   }
 
   @override
   Widget build(BuildContext context) {
-    List<Map<String, String>> mockUsers = [
-      {"id": "mockUser1Id", "name": "Mock User 1"},
-      {"id": "mockUser2Id", "name": "Mock User 2"},
-    ];
-
     return Scaffold(
       appBar: AppBar(
-        title: Text('Sign Up'),
+        title: const Text('Sign Up'),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             SignInButton(
-              onSignInSuccess: (user) => _navigateToHome(context, user),
+              onSignInSuccess: (user) {
+                if (mounted) {
+                  _navigateToHome(user!.uid);
+                }
+              },
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: onSkip,
-              child: Text('Skip'),
+              onPressed: widget.onSkip,
+              child: const Text('Skip'),
             ),
-            SizedBox(height: 20),
-            Text("Select Mock User for Testing:"),
-            for (var mockUser in mockUsers)
-              ElevatedButton(
-                onPressed: () async {
-                  await _firebaseService.createMockUsers();
-                  // Simulate user sign-in with mock user
-                  // Use mockUser["id"] to simulate the Firebase Auth UID
-                  _navigateToHome(context, null);
-                },
-                child: Text(mockUser["name"]!),
-              ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _selectMockUser,
+              child: const Text('Use Mock User'),
+            ),
           ],
         ),
       ),

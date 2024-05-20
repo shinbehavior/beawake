@@ -1,4 +1,3 @@
-// lib/widgets/toggle_main_button.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:beawake/providers/event_manager.dart';
@@ -51,7 +50,7 @@ class _AnimatedToggleButtonState extends State<AnimatedToggleButton> with Single
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(20.0), // Add padding around the button
+        padding: const EdgeInsets.all(20.0),
         child: GestureDetector(
           onTapDown: (_) {
             _controller.forward();
@@ -86,7 +85,7 @@ class _AnimatedToggleButtonState extends State<AnimatedToggleButton> with Single
                   BoxShadow(
                     color: Colors.black26,
                     blurRadius: 10,
-                    offset: Offset(0, 5),
+                    offset: const Offset(0, 5),
                   ),
                 ],
                 borderRadius: BorderRadius.circular(75),

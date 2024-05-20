@@ -1,26 +1,42 @@
+// lib/screens/friends_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firebase_service.dart';
 
 class FriendsScreen extends StatefulWidget {
+  final String userId;
+
+  const FriendsScreen({Key? key, required this.userId}) : super(key: key);
+
   @override
   _FriendsScreenState createState() => _FriendsScreenState();
 }
 
 class _FriendsScreenState extends State<FriendsScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseService _firebaseService = FirebaseService();
-  TextEditingController _friendCodeController = TextEditingController();
+  final TextEditingController _friendCodeController = TextEditingController();
+  String? _friendCode;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFriendCode();
+  }
+
+  void _loadFriendCode() async {
+    final userDoc = await _firestore.collection('users').doc(widget.userId).get();
+    setState(() {
+      _friendCode = userDoc['friendCode'];
+    });
+  }
 
   void _addFriend() async {
-    final user = _auth.currentUser;
     final friendCode = _friendCodeController.text;
 
-    if (user != null && friendCode.isNotEmpty) {
+    if (friendCode.isNotEmpty) {
       try {
-        await _firebaseService.addFriend(user.uid, friendCode);
+        await _firebaseService.addFriend(widget.userId, friendCode);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend added successfully')));
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error adding friend: $e')));
@@ -30,10 +46,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = _auth.currentUser;
-
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF1E1E2C), Color(0xFF2C2C38)],
           begin: Alignment.topCenter,
@@ -43,29 +57,38 @@ class _FriendsScreenState extends State<FriendsScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: Text('Friends Page'),
+          title: const Text('Friends Page'),
         ),
         body: Column(
           children: [
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                controller: _friendCodeController,
-                decoration: InputDecoration(
-                  labelText: 'Enter friend code',
-                  suffixIcon: IconButton(
-                    icon: Icon(Icons.add),
-                    onPressed: _addFriend,
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _friendCodeController,
+                    decoration: InputDecoration(
+                      labelText: 'Enter friend code',
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: _addFriend,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Your Friend Code: ${_friendCode ?? "loading..."}',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ],
               ),
             ),
             Expanded(
               child: StreamBuilder<DocumentSnapshot>(
-                stream: _firestore.collection('users').doc(user?.uid).snapshots(),
+                stream: _firestore.collection('users').doc(widget.userId).snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return Center(child: CircularProgressIndicator());
+                    return const Center(child: CircularProgressIndicator());
                   }
 
                   var userData = snapshot.data?.data() as Map<String, dynamic>;
@@ -78,7 +101,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         future: _firestore.collection('users').doc(friends[index]).get(),
                         builder: (context, friendSnapshot) {
                           if (!friendSnapshot.hasData) {
-                            return ListTile(title: Text('Loading...'));
+                            return const ListTile(title: Text('Loading...'));
                           }
 
                           var friendData = friendSnapshot.data?.data() as Map<String, dynamic>;
@@ -87,7 +110,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                 ? CircleAvatar(
                                     backgroundImage: NetworkImage(friendData['avatarUrl']),
                                   )
-                                : CircleAvatar(
+                                : const CircleAvatar(
                                     child: Icon(Icons.person),
                                   ),
                             title: Text(friendData['username'] ?? 'No Name'),

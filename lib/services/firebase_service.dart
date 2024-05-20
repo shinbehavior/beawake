@@ -31,7 +31,7 @@ class FirebaseService {
           await _firestore.collection('users').doc(firebaseUser.uid).set({
             'email': appleIdCredential.email,
             'fullName': '${appleIdCredential.givenName} ${appleIdCredential.familyName}',
-            'friendCode': await _generateUniqueFriendCode(),
+            'friendCode': await _generateUniqueFriendCode(),  // Use unique friend code generation
             'friends': [],
           });
         }
@@ -58,6 +58,24 @@ class FirebaseService {
   Future<bool> _checkCodeUnique(String code) async {
     QuerySnapshot snapshot = await _firestore.collection('users').where('friendCode', isEqualTo: code).get();
     return snapshot.docs.isEmpty;
+  }
+
+  Future<void> createMockUsers() async {
+    await _firestore.collection('users').doc('mockUser1Id').set({
+      'email': 'mockuser1@example.com',
+      'fullName': 'Mock User 1',
+      'friendCode': await _generateUniqueFriendCode(),
+      'friends': [],
+    });
+
+    await _firestore.collection('users').doc('mockUser2Id').set({
+      'email': 'mockuser2@example.com',
+      'fullName': 'Mock User 2',
+      'friendCode': await _generateUniqueFriendCode(),
+      'friends': [],
+    });
+
+    // Add more mock users as needed
   }
 
   Future<void> updateUserProfile(String userId, String username, bool skipAvatar) async {
@@ -91,23 +109,5 @@ class FirebaseService {
     } else {
       throw Exception('No user found with this friend code');
     }
-  }
-
-  Future<void> createMockUsers() async {
-    await _firestore.collection('users').doc('mockUser1Id').set({
-      'email': 'mockuser1@example.com',
-      'fullName': 'Mock User 1',
-      'friendCode': await _generateUniqueFriendCode(),
-      'friends': [],
-    });
-
-    await _firestore.collection('users').doc('mockUser2Id').set({
-      'email': 'mockuser2@example.com',
-      'fullName': 'Mock User 2',
-      'friendCode': await _generateUniqueFriendCode(),
-      'friends': [],
-    });
-
-    // Add more mock users as needed
   }
 }
