@@ -26,8 +26,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  void _selectMockUser() {
+  void _selectMockUser1() {
     widget.onSelectMockUser("mockUser1Id");
+  }
+
+  void _selectMockUser2() {
+    widget.onSelectMockUser("mockUser2Id");
   }
 
   @override
@@ -54,8 +58,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _selectMockUser,
-              child: const Text('Use Mock User'),
+              onPressed: _selectMockUser1,
+              child: const Text('Use Mock User 1'),
+            ),
+            ElevatedButton(
+              onPressed: _selectMockUser2,
+              child: const Text('Use Mock User 2'),
             ),
           ],
         ),
