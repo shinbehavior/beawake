@@ -44,6 +44,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _fetchFriendsData(List<dynamic> friendIds) async {
+    List<Map<String, dynamic>> friendsData = [];
+    for (String friendId in friendIds) {
+      DocumentSnapshot friendDoc = await _firestore.collection('users').doc(friendId).get();
+      Map<String, dynamic> friendData = friendDoc.data() as Map<String, dynamic>;
+      List<Map<String, dynamic>> events = await _firebaseService.fetchUserEvents(friendId);
+      friendData['events'] = events;
+      friendsData.add(friendData);
+    }
+    return friendsData;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -94,18 +106,22 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   var userData = snapshot.data?.data() as Map<String, dynamic>;
                   var friends = userData['friends'] as List<dynamic>;
 
-                  return ListView.builder(
-                    itemCount: friends.length,
-                    itemBuilder: (context, index) {
-                      return FutureBuilder<DocumentSnapshot>(
-                        future: _firestore.collection('users').doc(friends[index]).get(),
-                        builder: (context, friendSnapshot) {
-                          if (!friendSnapshot.hasData) {
-                            return const ListTile(title: Text('Loading...'));
-                          }
+                  return FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _fetchFriendsData(friends),
+                    builder: (context, friendsSnapshot) {
+                      if (!friendsSnapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                          var friendData = friendSnapshot.data?.data() as Map<String, dynamic>;
-                          return ListTile(
+                      var friendsData = friendsSnapshot.data!;
+
+                      return ListView.builder(
+                        itemCount: friendsData.length,
+                        itemBuilder: (context, index) {
+                          var friendData = friendsData[index];
+                          var events = friendData['events'] as List<Map<String, dynamic>>;
+
+                          return ExpansionTile(
                             leading: friendData['avatarUrl'] != null
                                 ? CircleAvatar(
                                     backgroundImage: NetworkImage(friendData['avatarUrl']),
@@ -115,6 +131,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                   ),
                             title: Text(friendData['username'] ?? 'No Name'),
                             subtitle: Text(friendData['email'] ?? 'No Email'),
+                            children: events.map((event) {
+                              return ListTile(
+                                title: Text('${event['type']} at ${event['timestamp']}'),
+                              );
+                            }).toList(),
                           );
                         },
                       );

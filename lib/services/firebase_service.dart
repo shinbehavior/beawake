@@ -2,7 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:beawake/utils/friend_code.dart';  // Import CodeGenerator
+import 'package:beawake/utils/friend_code.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -88,9 +88,16 @@ class FirebaseService {
   Future<void> saveEvent(String userId, String eventType, DateTime eventTime) async {
     CollectionReference users = _firestore.collection('Users');
     await users.doc(userId).collection('Events').add({
+      'userId': userId,
       'type': eventType,
-      'time': eventTime,
+      'timestamp': eventTime,
     });
+  }
+
+  Future<List<Map<String, dynamic>>> fetchUserEvents(String userId) async {
+    QuerySnapshot snapshot = await _firestore.collection('event').where('userId', isEqualTo: userId).orderBy('timestamp', descending: true).get();
+    
+    return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
   }
 
   Future<void> addFriend(String userId, String friendCode) async {

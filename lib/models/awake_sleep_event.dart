@@ -1,11 +1,13 @@
 class Event {
-  final String type; // 'awake' or 'sleep'
+  final String userId;
+  final String type;
   final String timestamp;
 
-  Event(this.type, this.timestamp);
+  Event(this.userId, this.type, this.timestamp);
 
   Map<String, dynamic> toJson() {
     return {
+      'userId': userId,
       'type': type,
       'timestamp': timestamp,
     };
@@ -13,7 +15,8 @@ class Event {
 
   static Event fromJson(Map<String, dynamic> json) {
     return Event(
-      json['type'],
+      json['userId'] as String,
+      json['type'] as String,
       json['timestamp'] as String,
     );
   }
