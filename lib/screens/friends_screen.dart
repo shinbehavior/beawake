@@ -17,11 +17,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
   final FirebaseService _firebaseService = FirebaseService();
   final TextEditingController _friendCodeController = TextEditingController();
   String? _friendCode;
+  Future<List<Map<String, dynamic>>>? _friendsFuture;
 
   @override
   void initState() {
     super.initState();
     _loadFriendCode();
+    _fetchFriendsData();
   }
 
   void _loadFriendCode() async {
@@ -31,6 +33,34 @@ class _FriendsScreenState extends State<FriendsScreen> {
     });
   }
 
+  void _fetchFriendsData() {
+    setState(() {
+      _friendsFuture = _getFriendsData();
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> _getFriendsData() async {
+    final userDoc = await _firestore.collection('users').doc(widget.userId).get();
+    if (!userDoc.exists) {
+      return [];
+    }
+
+    final userData = userDoc.data() as Map<String, dynamic>;
+    final friendIds = userData['friends'] as List<dynamic>;
+
+    List<Map<String, dynamic>> friendsData = [];
+    for (String friendId in friendIds) {
+      DocumentSnapshot friendDoc = await _firestore.collection('users').doc(friendId).get();
+      if (friendDoc.exists) {
+        Map<String, dynamic> friendData = friendDoc.data() as Map<String, dynamic>;
+        List<Map<String, dynamic>> events = await _firebaseService.fetchUserEvents(friendId);
+        friendData['events'] = events;
+        friendsData.add(friendData);
+      }
+    }
+    return friendsData;
+  }
+
   void _addFriend() async {
     final friendCode = _friendCodeController.text;
 
@@ -38,22 +68,36 @@ class _FriendsScreenState extends State<FriendsScreen> {
       try {
         await _firebaseService.addFriend(widget.userId, friendCode);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend added successfully')));
+        _fetchFriendsData();  // Refresh the friends list after adding a friend
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error adding friend: $e')));
       }
     }
   }
 
-  Future<List<Map<String, dynamic>>> _fetchFriendsData(List<dynamic> friendIds) async {
-    List<Map<String, dynamic>> friendsData = [];
-    for (String friendId in friendIds) {
-      DocumentSnapshot friendDoc = await _firestore.collection('users').doc(friendId).get();
-      Map<String, dynamic> friendData = friendDoc.data() as Map<String, dynamic>;
-      List<Map<String, dynamic>> events = await _firebaseService.fetchUserEvents(friendId);
-      friendData['events'] = events;
-      friendsData.add(friendData);
+  Widget _buildEventTile(Map<String, dynamic> event) {
+    IconData icon;
+    Color color;
+
+    switch (event['type']) {
+      case 'awake':
+        icon = Icons.wb_sunny;
+        color = Colors.orange;
+        break;
+      case 'sleep':
+        icon = Icons.nightlight_round;
+        color = Colors.blue;
+        break;
+      default:
+        icon = Icons.event;
+        color = Colors.grey;
     }
-    return friendsData;
+
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text('${event['type']} at ${event['timestamp']}'),
+      subtitle: Text('User ID: ${event['userId']}'),
+    );
   }
 
   @override
@@ -96,48 +140,36 @@ class _FriendsScreenState extends State<FriendsScreen> {
               ),
             ),
             Expanded(
-              child: StreamBuilder<DocumentSnapshot>(
-                stream: _firestore.collection('users').doc(widget.userId).snapshots(),
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: _friendsFuture,
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('No friends found.'));
                   }
 
-                  var userData = snapshot.data?.data() as Map<String, dynamic>;
-                  var friends = userData['friends'] as List<dynamic>;
+                  var friendsData = snapshot.data!;
 
-                  return FutureBuilder<List<Map<String, dynamic>>>(
-                    future: _fetchFriendsData(friends),
-                    builder: (context, friendsSnapshot) {
-                      if (!friendsSnapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
+                  return ListView.builder(
+                    itemCount: friendsData.length,
+                    itemBuilder: (context, index) {
+                      var friendData = friendsData[index];
+                      var events = friendData['events'] as List<Map<String, dynamic>>;
 
-                      var friendsData = friendsSnapshot.data!;
-
-                      return ListView.builder(
-                        itemCount: friendsData.length,
-                        itemBuilder: (context, index) {
-                          var friendData = friendsData[index];
-                          var events = friendData['events'] as List<Map<String, dynamic>>;
-
-                          return ExpansionTile(
-                            leading: friendData['avatarUrl'] != null
-                                ? CircleAvatar(
-                                    backgroundImage: NetworkImage(friendData['avatarUrl']),
-                                  )
-                                : const CircleAvatar(
-                                    child: Icon(Icons.person),
-                                  ),
-                            title: Text(friendData['username'] ?? 'No Name'),
-                            subtitle: Text(friendData['email'] ?? 'No Email'),
-                            children: events.map((event) {
-                              return ListTile(
-                                title: Text('${event['type']} at ${event['timestamp']}'),
-                              );
-                            }).toList(),
-                          );
-                        },
+                      return ExpansionTile(
+                        leading: friendData['avatarUrl'] != null
+                            ? CircleAvatar(
+                                backgroundImage: NetworkImage(friendData['avatarUrl']),
+                              )
+                            : const CircleAvatar(
+                                child: Icon(Icons.person),
+                              ),
+                        title: Text(friendData['username'] ?? 'No Name'),
+                        subtitle: Text(friendData['email'] ?? 'No Email'),
+                        children: events.map((event) => _buildEventTile(event)).toList(),
                       );
                     },
                   );

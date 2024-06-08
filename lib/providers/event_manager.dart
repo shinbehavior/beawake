@@ -1,7 +1,8 @@
-import 'package:beawake/services/firebase_service.dart';
+// lib/providers/event_manager.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/awake_sleep_event.dart';
+import '../services/firebase_service.dart';
 import 'package:intl/intl.dart';
 
 class EventManager extends ChangeNotifier {
@@ -19,25 +20,30 @@ class EventManager extends ChangeNotifier {
   Future<String> getLastEvent() async {
     try {
       var snapshot = await FirebaseFirestore.instance
-        .collection('events')
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get();
+          .collection('events')
+          .where('userId', isEqualTo: userId)
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
 
       if (snapshot.docs.isNotEmpty) {
         return snapshot.docs.first.data()['type'] as String;
       }
       return 'none';
     } catch (e) {
-      print('Failed to fetch the last evnet: $e');
+      print('Failed to fetch the last event: $e');
       return 'error';
     }
   }
 
-  // Fetch events from Firestore
   Future<void> fetchEvents() async {
     try {
-      var snapshot = await FirebaseFirestore.instance.collection('events').where('userId', isEqualTo: userId).get();
+      var snapshot = await FirebaseFirestore.instance
+          .collection('events')
+          .where('userId', isEqualTo: userId)
+          .orderBy('timestamp', descending: true)
+          .orderBy('type', descending: false)
+          .get();
       events = snapshot.docs
           .map((doc) => Event.fromJson(doc.data()))
           .toList();
@@ -47,29 +53,27 @@ class EventManager extends ChangeNotifier {
     }
   }
 
-  // Add a new event
-Future<bool> addEvent(String type) async {
-  DateTime now = DateTime.now();
-  String formattedDate = formatDateTime(now);
-  final newEvent = Event(userId!, type, formattedDate);
+  Future<bool> addEvent(String type) async {
+    DateTime now = DateTime.now();
+    String formattedDate = formatDateTime(now);
+    final newEvent = Event(userId!, type, formattedDate);
 
-  if (events.isNotEmpty && events.last.type == type) {
-    print("Cannot add the same event type consecutively.");
-    return false;
+    if (events.isNotEmpty && events.last.type == type) {
+      print("Cannot add the same event type consecutively.");
+      return false;
+    }
+
+    try {
+      await _firebaseService.saveEvent(userId!, type, now);
+      events.add(newEvent);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('Failed to add event: $e');
+      return false;
+    }
   }
 
-  try {
-    await FirebaseFirestore.instance.collection('events').add(newEvent.toJson());
-    events.add(newEvent);
-    notifyListeners();
-    return true;
-  } catch (e) {
-    print('Failed to add event: $e');
-    return false;
-  }
-}
-
-  // Clear all events
   void clearEvents() {
     events.clear();
     notifyListeners();

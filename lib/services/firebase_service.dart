@@ -86,17 +86,21 @@ class FirebaseService {
   }
 
   Future<void> saveEvent(String userId, String eventType, DateTime eventTime) async {
-    CollectionReference users = _firestore.collection('Users');
-    await users.doc(userId).collection('Events').add({
+    CollectionReference events = _firestore.collection('events');
+    final Map<String, dynamic> event = {
       'userId': userId,
       'type': eventType,
-      'timestamp': eventTime,
-    });
+      'timestamp': eventTime.toIso8601String(),
+    };
+    await events.add(event);
   }
 
   Future<List<Map<String, dynamic>>> fetchUserEvents(String userId) async {
-    QuerySnapshot snapshot = await _firestore.collection('event').where('userId', isEqualTo: userId).orderBy('timestamp', descending: true).get();
-    
+    QuerySnapshot snapshot = await _firestore.collection('events')
+      .where('userId', isEqualTo: userId)
+      .orderBy('timestamp', descending: true)
+      .orderBy('type', descending: false)
+      .get();
     return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
   }
 
