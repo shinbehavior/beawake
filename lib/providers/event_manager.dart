@@ -42,7 +42,6 @@ class EventManager extends ChangeNotifier {
           .collection('events')
           .where('userId', isEqualTo: userId)
           .orderBy('timestamp', descending: true)
-          .orderBy('type', descending: false)
           .get();
       events = snapshot.docs
           .map((doc) => Event.fromJson(doc.data()))
