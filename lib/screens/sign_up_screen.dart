@@ -1,6 +1,4 @@
-// lib/screens/sign_up_screen.dart
 import 'package:flutter/material.dart';
-import 'package:beawake/services/firebase_service.dart';
 import 'home_screen.dart';
 import 'package:beawake/widgets/sign_in_button.dart';
 
@@ -8,15 +6,17 @@ class SignUpScreen extends StatefulWidget {
   final VoidCallback onSkip;
   final Function(String) onSelectMockUser;
 
-  SignUpScreen({required this.onSkip, required this.onSelectMockUser});
+  const SignUpScreen({
+    Key? key,
+    required this.onSkip,
+    required this.onSelectMockUser,
+  }) : super(key: key);
 
   @override
   _SignUpScreenState createState() => _SignUpScreenState();
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  final FirebaseService _firebaseService = FirebaseService();
-
   void _navigateToHome(String userId) {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -26,12 +26,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  void _selectMockUser1() {
-    widget.onSelectMockUser("mockUser1Id");
-  }
-
-  void _selectMockUser2() {
-    widget.onSelectMockUser("mockUser2Id");
+  void _selectMockUser(String mockUserId) {
+    widget.onSelectMockUser(mockUserId);
   }
 
   @override
@@ -46,8 +42,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
           children: <Widget>[
             SignInButton(
               onSignInSuccess: (user) {
-                if (mounted) {
-                  _navigateToHome(user!.uid);
+                if (user != null) {
+                  _navigateToHome(user.uid);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Sign in failed')),
+                  );
                 }
               },
             ),
@@ -58,11 +58,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _selectMockUser1,
+              onPressed: () => _selectMockUser("mockUser1Id"),
               child: const Text('Use Mock User 1'),
             ),
             ElevatedButton(
-              onPressed: _selectMockUser2,
+              onPressed: () => _selectMockUser("mockUser2Id"),
               child: const Text('Use Mock User 2'),
             ),
           ],

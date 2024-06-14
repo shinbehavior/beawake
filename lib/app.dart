@@ -93,8 +93,8 @@ class _MyAppState extends State<MyApp> {
             unselectedItemColor: Colors.grey,
           ),
           textTheme: const TextTheme(
-            bodyText1: TextStyle(color: Colors.white),
-            bodyText2: TextStyle(color: Colors.white70),
+            bodyLarge: TextStyle(color: Colors.white),
+            bodyMedium: TextStyle(color: Colors.white70),
           ),
         ),
         home: _skipSignUp
