@@ -1,4 +1,3 @@
-// lib/providers/event_manager.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/awake_sleep_event.dart';
@@ -7,6 +6,7 @@ import 'package:intl/intl.dart';
 
 class EventManager extends ChangeNotifier {
   List<Event> events = [];
+  List<String> todoList = [];
   String? userId;
   final FirebaseService _firebaseService = FirebaseService();
 
@@ -76,5 +76,38 @@ class EventManager extends ChangeNotifier {
   void clearEvents() {
     events.clear();
     notifyListeners();
+  }
+
+  Future<void> fetchTodoList() async {
+    try {
+      var snapshot = await FirebaseFirestore.instance
+          .collection('todos')
+          .where('userId', isEqualTo: userId)
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        todoList = List<String>.from(snapshot.docs.first.data()['tasks']);
+      } else {
+        todoList = [];
+      }
+      notifyListeners();
+    } catch (e) {
+      print('Failed to fetch TODO list: $e');
+    }
+  }
+
+  Future<void> saveTodoList(List<String> tasks) async {
+    try {
+      await FirebaseFirestore.instance.collection('todos').add({
+        'userId': userId,
+        'tasks': tasks,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      todoList = tasks;
+      notifyListeners();
+    } catch (e) {
+      print('Failed to save TODO list: $e');
+    }
   }
 }

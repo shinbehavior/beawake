@@ -121,4 +121,26 @@ class FirebaseService {
       throw Exception('No user found with this friend code');
     }
   }
+
+  Future<void> saveTodoList(String userId, List<String> tasks) async {
+    await _firestore.collection('todos').add({
+      'userId': userId,
+      'tasks': tasks,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<List<String>> fetchTodoList(String userId) async {
+    var snapshot = await _firestore.collection('todos')
+        .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      return List<String>.from(snapshot.docs.first.data()['tasks']);
+    } else {
+      return [];
+    }
+  }
 }
