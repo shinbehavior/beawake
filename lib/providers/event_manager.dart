@@ -54,11 +54,11 @@ class EventManager extends ChangeNotifier {
     try {
       var snapshot = await FirebaseFirestore.instance
           .collection('todos')
-          .where('userId', isEqualTo: userId)
+          .doc(userId)
           .get();
 
-      if (snapshot.docs.isNotEmpty) {
-        todoList = List<Map<String, dynamic>>.from(snapshot.docs.first.data()['tasks']);
+      if (snapshot.exists) {
+        todoList = List<Map<String, dynamic>>.from(snapshot.data()!['tasks']);
       } else {
         todoList = [];
       }

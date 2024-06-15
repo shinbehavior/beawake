@@ -13,7 +13,30 @@ class TodoListModal extends StatefulWidget {
 
 class _TodoListModalState extends State<TodoListModal> {
   final TextEditingController _taskController = TextEditingController();
-  final List<Map<String, dynamic>> _tasks = [];
+  List<Map<String, dynamic>> _tasks = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTasks();
+  }
+
+  void _fetchTasks() async {
+    final eventManager = Provider.of<EventManager>(context, listen: false);
+    try {
+      await eventManager.fetchTodoList();
+      setState(() {
+        _tasks = eventManager.todoList;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      print("Failed to fetch todo list: $e");
+    }
+  }
 
   void _addTask() {
     if (_taskController.text.isNotEmpty) {
@@ -77,72 +100,74 @@ class _TodoListModalState extends State<TodoListModal> {
     return Container(
       padding: const EdgeInsets.all(16.0),
       height: MediaQuery.of(context).size.height * 0.5, // Set the height of the modal sheet
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Add TODO List',
-            style: Theme.of(context).textTheme.headline6,
-          ),
-          TextField(
-            controller: _taskController,
-            decoration: InputDecoration(
-              labelText: 'Enter task',
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: _addTask,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _tasks.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(_tasks[index]['task']),
-                  subtitle: Text(_tasks[index]['status']),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _editTask(index);
-                      } else if (value == 'delete') {
-                        _deleteTask(index);
-                      } else {
-                        _updateTaskStatus(index, value);
-                      }
-                    },
-                    itemBuilder: (BuildContext context) {
-                      return [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Text('Edit'),
+      child: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add TODO List',
+                  style: Theme.of(context).textTheme.headline6,
+                ),
+                TextField(
+                  controller: _taskController,
+                  decoration: InputDecoration(
+                    labelText: 'Enter task',
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: _addTask,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _tasks.length,
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        title: Text(_tasks[index]['task']),
+                        subtitle: Text(_tasks[index]['status']),
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              _editTask(index);
+                            } else if (value == 'delete') {
+                              _deleteTask(index);
+                            } else {
+                              _updateTaskStatus(index, value);
+                            }
+                          },
+                          itemBuilder: (BuildContext context) {
+                            return [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Edit'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'done',
+                                child: Text('Mark as Done'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'failed',
+                                child: Text('Mark as Failed'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Delete'),
+                              ),
+                            ];
+                          },
                         ),
-                        const PopupMenuItem(
-                          value: 'done',
-                          child: Text('Mark as Done'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'failed',
-                          child: Text('Mark as Failed'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Delete'),
-                        ),
-                      ];
+                      );
                     },
                   ),
-                );
-              },
+                ),
+                ElevatedButton(
+                  onPressed: _saveTasks,
+                  child: const Text('Save'),
+                ),
+              ],
             ),
-          ),
-          ElevatedButton(
-            onPressed: _saveTasks,
-            child: const Text('Save'),
-          ),
-        ],
-      ),
     );
   }
 }
