@@ -1,4 +1,3 @@
-// lib/services/firebase_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -31,7 +30,7 @@ class FirebaseService {
           await _firestore.collection('users').doc(firebaseUser.uid).set({
             'email': appleIdCredential.email,
             'fullName': '${appleIdCredential.givenName} ${appleIdCredential.familyName}',
-            'friendCode': await _generateUniqueFriendCode(),  // Use unique friend code generation
+            'friendCode': await _generateUniqueFriendCode(),
             'friends': [],
           });
         }
@@ -74,8 +73,6 @@ class FirebaseService {
       'friendCode': await _generateUniqueFriendCode(),
       'friends': [],
     });
-
-    // Add more mock users as needed
   }
 
   Future<void> updateUserProfile(String userId, String username, bool skipAvatar) async {
@@ -93,6 +90,16 @@ class FirebaseService {
       'timestamp': eventTime.toIso8601String(),
     };
     await events.add(event);
+  }
+
+  Future<void> saveTodoList(String userId, List<Map<String, dynamic>> tasks) async {
+    CollectionReference todos = _firestore.collection('todos');
+    final Map<String, dynamic> todoList = {
+      'userId': userId,
+      'tasks': tasks,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+    await todos.doc(userId).set(todoList);
   }
 
   Future<List<Map<String, dynamic>>> fetchUserEvents(String userId) async {
@@ -119,28 +126,6 @@ class FirebaseService {
       });
     } else {
       throw Exception('No user found with this friend code');
-    }
-  }
-
-  Future<void> saveTodoList(String userId, List<String> tasks) async {
-    await _firestore.collection('todos').add({
-      'userId': userId,
-      'tasks': tasks,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-  }
-
-  Future<List<String>> fetchTodoList(String userId) async {
-    var snapshot = await _firestore.collection('todos')
-        .where('userId', isEqualTo: userId)
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get();
-
-    if (snapshot.docs.isNotEmpty) {
-      return List<String>.from(snapshot.docs.first.data()['tasks']);
-    } else {
-      return [];
     }
   }
 }
