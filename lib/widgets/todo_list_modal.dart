@@ -88,11 +88,9 @@ class _TodoListModalState extends State<TodoListModal> {
   }
 
   void _saveTasks() async {
-    if (_tasks.isNotEmpty) {
-      final eventManager = Provider.of<EventManager>(context, listen: false);
-      await eventManager.saveTodoList(_tasks);
-      Navigator.of(context).pop();
-    }
+    final eventManager = Provider.of<EventManager>(context, listen: false);
+    await eventManager.saveTodoList(_tasks);
+    Navigator.of(context).pop();
   }
 
   @override
@@ -101,16 +99,17 @@ class _TodoListModalState extends State<TodoListModal> {
       padding: const EdgeInsets.all(16.0),
       height: MediaQuery.of(context).size.height * 0.5, // Set the height of the modal sheet
       child: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Add TODO List',
-                  style: Theme.of(context).textTheme.headline6,
+                  'TODO LIST',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
                 TextField(
                   controller: _taskController,
+                  style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     labelText: 'Enter task',
                     suffixIcon: IconButton(

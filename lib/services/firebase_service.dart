@@ -102,6 +102,14 @@ class FirebaseService {
     await todos.doc(userId).set(todoList);
   }
 
+  Future<List<Map<String, dynamic>>> fetchTodoList(String userId) async {
+    DocumentSnapshot snapshot = await _firestore.collection('todos').doc(userId).get();
+    if (snapshot.exists) {
+      return List<Map<String, dynamic>>.from(snapshot['tasks']);
+    }
+    return[];
+  }
+
   Future<List<Map<String, dynamic>>> fetchUserEvents(String userId) async {
     QuerySnapshot snapshot = await _firestore.collection('events')
       .where('userId', isEqualTo: userId)

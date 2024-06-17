@@ -1,4 +1,3 @@
-// lib/screens/friends_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_service.dart';
@@ -95,8 +94,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
     return ListTile(
       leading: Icon(icon, color: color),
-      title: Text('${event['type']} at ${event['timestamp']}'),
-      subtitle: Text('User ID: ${event['userId']}'),
+      title: Text(
+        '${event['type']} at ${event['timestamp']}',
+        style: TextStyle(color: Colors.white), // Set title text color
+      ),
+      subtitle: Text(
+        'User ID: ${event['userId']}',
+        style: TextStyle(color: Colors.white70), // Set subtitle text color
+      ),
     );
   }
 
@@ -111,7 +116,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
         ),
       ),
       child: Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.transparent, // Ensure scaffold background is transparent
         appBar: AppBar(
           title: const Text('Friends Page'),
         ),
@@ -123,11 +128,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 children: [
                   TextField(
                     controller: _friendCodeController,
+                    style: TextStyle(color: Colors.white), // Set text color for the input text
                     decoration: InputDecoration(
                       labelText: 'Enter friend code',
+                      labelStyle: TextStyle(color: Colors.white70), // Set label text color
                       suffixIcon: IconButton(
-                        icon: const Icon(Icons.add),
+                        icon: const Icon(Icons.add, color: Colors.white), // Set icon color
                         onPressed: _addFriend,
+                      ),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white70), // Set underline color
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white), // Set underline color when focused
                       ),
                     ),
                   ),
@@ -165,10 +178,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                 backgroundImage: NetworkImage(friendData['avatarUrl']),
                               )
                             : const CircleAvatar(
-                                child: Icon(Icons.person),
+                                child: Icon(Icons.person, color: Colors.white), // Set icon color
+                                backgroundColor: Colors.grey, // Set background color
                               ),
-                        title: Text(friendData['username'] ?? 'No Name'),
-                        subtitle: Text(friendData['email'] ?? 'No Email'),
+                        title: Text(
+                          friendData['username'] ?? 'No Name',
+                          style: TextStyle(color: Colors.white), // Set title text color
+                        ),
+                        subtitle: Text(
+                          friendData['email'] ?? 'No Email',
+                          style: TextStyle(color: Colors.white70), // Set subtitle text color
+                        ),
                         children: events.map((event) => _buildEventTile(event)).toList(),
                       );
                     },

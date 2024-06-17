@@ -1,4 +1,3 @@
-// lib/app.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:beawake/screens/home_screen.dart';
@@ -7,6 +6,7 @@ import 'package:beawake/screens/sign_up_screen.dart';
 import 'package:beawake/screens/stats_screen.dart';
 import 'package:provider/provider.dart';
 import 'providers/event_manager.dart';
+import 'providers/shared.dart';
 
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -17,14 +17,15 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   int _currentIndex = 0;
-  bool _skipSignUp = false;
+  bool _isLoggedIn = false;
   String? _userId;
   late List<Widget> _children;
 
   @override
   void initState() {
     super.initState();
-    _children = [];
+    _children = []; // Initialize _children as an empty list
+    _checkLoginStatus();
   }
 
   void onTabTapped(int index) {
@@ -35,16 +36,18 @@ class _MyAppState extends State<MyApp> {
 
   void _skipRegistration() {
     setState(() {
-      _skipSignUp = true;
+      _isLoggedIn = true;
       _userId = "skipUser"; // Use a placeholder ID for skipped users
+      Shared.saveLoginSharedPreference(true);
       _initializeChildren();
     });
   }
 
   void _selectMockUser(String mockUserId) {
     setState(() {
-      _skipSignUp = true;
+      _isLoggedIn = true;
       _userId = mockUserId; // Use the selected mock user ID
+      Shared.saveLoginSharedPreference(true);
       _initializeChildren();
     });
   }
@@ -52,19 +55,50 @@ class _MyAppState extends State<MyApp> {
   void _setUserId(String userId) {
     setState(() {
       _userId = userId;
+      Shared.saveLoginSharedPreference(true);
       _initializeChildren();
     });
   }
 
   void _initializeChildren() {
-    _children = [
-      ChangeNotifierProvider(
-        create: (_) => EventManager(_userId),
-        child: HomeScreen(userId: _userId!),
+    if (_userId != null) {
+      _children = [
+        ChangeNotifierProvider(
+          create: (_) => EventManager(_userId),
+          child: HomeScreen(userId: _userId!),
+        ),
+        const StatsScreen(),
+        FriendsScreen(userId: _userId!),
+      ];
+    }
+  }
+
+  Future<void> _checkLoginStatus() async {
+    bool? isLoggedIn = await Shared.getUserSharedPreferences();
+    if (isLoggedIn == true) {
+      setState(() {
+        _isLoggedIn = true;
+      });
+    }
+  }
+
+  Future<void> _signOut(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    Shared.saveLoginSharedPreference(false);
+    setState(() {
+      _isLoggedIn = false;
+      _userId = null;
+      _children = [];
+    });
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SignUpScreen(
+          onSkip: _skipRegistration,
+          onSelectMockUser: _selectMockUser,
+        ),
       ),
-      const StatsScreen(),
-      FriendsScreen(userId: _userId!),
-    ];
+    );
   }
 
   @override
@@ -97,7 +131,7 @@ class _MyAppState extends State<MyApp> {
             bodyMedium: TextStyle(color: Colors.white70),
           ),
         ),
-        home: _skipSignUp
+        home: _isLoggedIn
             ? _buildMainScreen()
             : StreamBuilder<User?>(
                 stream: FirebaseAuth.instance.authStateChanges(),
@@ -120,10 +154,23 @@ class _MyAppState extends State<MyApp> {
   }
 
   Widget _buildMainScreen() {
+    if (_children.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return Scaffold(
       appBar: AppBar(
         title: const Text("beawake"),
         centerTitle: true,
+        actions: [
+          Builder(
+            builder: (context) {
+              return IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () => _signOut(context),
+              );
+            },
+          ),
+        ],
       ),
       body: IndexedStack(
         index: _currentIndex,

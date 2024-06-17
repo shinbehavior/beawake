@@ -12,6 +12,11 @@ class EventManager extends ChangeNotifier {
 
   EventManager(this.userId);
 
+  void setUserId(String userId) {
+    this.userId = userId;
+    notifyListeners();
+  }
+
   String formatDateTime(DateTime dateTime) {
     final DateFormat formatter = DateFormat('yyyy-MM-dd HH:mm');
     return formatter.format(dateTime);
@@ -51,17 +56,9 @@ class EventManager extends ChangeNotifier {
   }
 
   Future<void> fetchTodoList() async {
+    if (userId == null) return;
     try {
-      var snapshot = await FirebaseFirestore.instance
-          .collection('todos')
-          .doc(userId)
-          .get();
-
-      if (snapshot.exists) {
-        todoList = List<Map<String, dynamic>>.from(snapshot.data()!['tasks']);
-      } else {
-        todoList = [];
-      }
+      todoList = await _firebaseService.fetchTodoList(userId!);
       notifyListeners();
     } catch (e) {
       print('Failed to fetch todo list: $e');
@@ -69,6 +66,7 @@ class EventManager extends ChangeNotifier {
   }
 
   Future<void> saveTodoList(List<Map<String, dynamic>> tasks) async {
+    if (userId == null) return;
     try {
       await _firebaseService.saveTodoList(userId!, tasks);
       todoList = tasks;
@@ -101,6 +99,12 @@ class EventManager extends ChangeNotifier {
 
   void clearEvents() {
     events.clear();
+    notifyListeners();
+  }
+
+  void clearData() {
+    events.clear();
+    todoList.clear();
     notifyListeners();
   }
 }

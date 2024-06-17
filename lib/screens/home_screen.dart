@@ -1,3 +1,4 @@
+// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:beawake/widgets/toggle_main_button.dart';
 import 'package:beawake/widgets/event_list.dart';
