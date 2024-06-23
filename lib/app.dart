@@ -24,7 +24,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _children = []; // Initialize _children as an empty list
+    _children = [];
     _checkLoginStatus();
   }
 
@@ -33,23 +33,37 @@ class _MyAppState extends State<MyApp> {
       _currentIndex = index;
     });
   }
+  
+  void _navigateToHome() {
+    if (mounted) {
+      Future.microtask(() {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => _buildMainScreen(),
+          ),
+        );
+      });
+    }
+  }
 
   void _skipRegistration() {
     setState(() {
       _isLoggedIn = true;
-      _userId = "skipUser"; // Use a placeholder ID for skipped users
+      _userId = "skipUser";
       Shared.saveLoginSharedPreference(true);
       _initializeChildren();
     });
+    Future.microtask(() => _navigateToHome());
   }
 
   void _selectMockUser(String mockUserId) {
     setState(() {
       _isLoggedIn = true;
-      _userId = mockUserId; // Use the selected mock user ID
+      _userId = mockUserId;
       Shared.saveLoginSharedPreference(true);
       _initializeChildren();
     });
+    Future.microtask(() => _navigateToHome());
   }
 
   void _setUserId(String userId) {
@@ -62,6 +76,7 @@ class _MyAppState extends State<MyApp> {
 
   void _initializeChildren() {
     if (_userId != null) {
+      print('Initializing children with user ID: $_userId');
       _children = [
         ChangeNotifierProvider(
           create: (_) => EventManager(_userId),
@@ -70,14 +85,32 @@ class _MyAppState extends State<MyApp> {
         const StatsScreen(),
         FriendsScreen(userId: _userId!),
       ];
+    } else {
+      print('User ID is null. Cannot initialize children.');
     }
   }
 
   Future<void> _checkLoginStatus() async {
+    print('Checking login status...');
     bool? isLoggedIn = await Shared.getUserSharedPreferences();
     if (isLoggedIn == true) {
       setState(() {
         _isLoggedIn = true;
+      });
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        print('User is logged in with ID: ${user.uid}');
+        _setUserId(user.uid);
+      } else {
+        print('No current user found.');
+        setState(() {
+          _isLoggedIn = false;
+        });
+      }
+    } else {
+      print('User is not logged in.');
+      setState(() {
+        _isLoggedIn = false;
       });
     }
   }
@@ -90,15 +123,19 @@ class _MyAppState extends State<MyApp> {
       _userId = null;
       _children = [];
     });
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SignUpScreen(
-          onSkip: _skipRegistration,
-          onSelectMockUser: _selectMockUser,
-        ),
-      ),
-    );
+    if (mounted) {
+      Future.microtask(() {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SignUpScreen(
+              onSkip: _skipRegistration,
+              onSelectMockUser: _selectMockUser,
+            ),
+          ),
+        );
+      });
+    }
   }
 
   @override
@@ -133,21 +170,9 @@ class _MyAppState extends State<MyApp> {
         ),
         home: _isLoggedIn
             ? _buildMainScreen()
-            : StreamBuilder<User?>(
-                stream: FirebaseAuth.instance.authStateChanges(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasData) {
-                    _setUserId(snapshot.data!.uid);
-                    return _buildMainScreen();
-                  } else {
-                    return SignUpScreen(
-                      onSkip: _skipRegistration,
-                      onSelectMockUser: _selectMockUser,
-                    );
-                  }
-                },
+            : SignUpScreen(
+                onSkip: _skipRegistration,
+                onSelectMockUser: _selectMockUser,
               ),
       ),
     );

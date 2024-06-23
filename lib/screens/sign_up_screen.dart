@@ -18,16 +18,20 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   void _navigateToHome(String userId) {
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => HomeScreen(userId: userId),
-      ),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => HomeScreen(userId: userId),
+          ),
+        );
+      }
+    });
   }
 
   void _selectMockUser(String mockUserId) {
     widget.onSelectMockUser(mockUserId);
+    _navigateToHome(mockUserId);
   }
 
   @override
@@ -53,7 +57,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: widget.onSkip,
+              onPressed: () {
+                widget.onSkip();
+                _navigateToHome("skipUser");
+              },
               child: const Text('Skip'),
             ),
             const SizedBox(height: 20),

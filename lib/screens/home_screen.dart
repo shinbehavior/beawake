@@ -1,8 +1,9 @@
-// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:beawake/widgets/toggle_main_button.dart';
 import 'package:beawake/widgets/event_list.dart';
 import 'package:beawake/widgets/todo_list_modal.dart';
+import 'package:provider/provider.dart';
+import '../providers/event_manager.dart';
 
 class HomeScreen extends StatelessWidget {
   final String userId;
@@ -14,7 +15,10 @@ class HomeScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       builder: (BuildContext context) {
-        return TodoListModal(userId: userId);
+        return ChangeNotifierProvider.value(
+          value: Provider.of<EventManager>(context, listen: false),
+          child: TodoListModal(userId: userId),
+        );
       },
     );
   }
