@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:beawake/widgets/toggle_main_button.dart';
 import 'package:beawake/widgets/event_list.dart';
 import 'package:beawake/widgets/todo_list_modal.dart';
-import 'package:provider/provider.dart';
 import '../providers/event_manager.dart';
 
 class HomeScreen extends StatelessWidget {

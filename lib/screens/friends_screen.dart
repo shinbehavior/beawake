@@ -27,9 +27,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   void _loadFriendCode() async {
     final userDoc = await _firestore.collection('users').doc(widget.userId).get();
-    setState(() {
-      _friendCode = userDoc['friendCode'];
-    });
+    if (mounted) {
+      setState(() {
+        _friendCode = userDoc['friendCode'];
+      });
+    }
   }
 
   void _fetchFriendsData() {
@@ -66,10 +68,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
     if (friendCode.isNotEmpty) {
       try {
         await _firebaseService.addFriend(widget.userId, friendCode);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend added successfully')));
-        _fetchFriendsData();  // Refresh the friends list after adding a friend
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend added successfully')));
+          _fetchFriendsData(); // Refresh the friends list after adding a friend
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error adding friend: $e')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error adding friend: $e')));
+        }
       }
     }
   }

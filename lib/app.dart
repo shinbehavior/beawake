@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 import 'providers/event_manager.dart';
 import 'providers/shared.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -19,12 +21,10 @@ class _MyAppState extends State<MyApp> {
   int _currentIndex = 0;
   bool _isLoggedIn = false;
   String? _userId;
-  late List<Widget> _children;
 
   @override
   void initState() {
     super.initState();
-    _children = [];
     _checkLoginStatus();
   }
 
@@ -35,14 +35,12 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _navigateToHome() {
-    if (mounted) {
-      Future.microtask(() {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => _buildMainScreen(),
-          ),
-        );
-      });
+    if (navigatorKey.currentState != null) {
+      navigatorKey.currentState!.pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => _buildMainScreen(),
+        ),
+      );
     }
   }
 
@@ -51,9 +49,8 @@ class _MyAppState extends State<MyApp> {
       _isLoggedIn = true;
       _userId = "skipUser";
       Shared.saveLoginSharedPreference(true);
-      _initializeChildren();
+      _navigateToHome();
     });
-    Future.microtask(() => _navigateToHome());
   }
 
   void _selectMockUser(String mockUserId) {
@@ -61,54 +58,32 @@ class _MyAppState extends State<MyApp> {
       _isLoggedIn = true;
       _userId = mockUserId;
       Shared.saveLoginSharedPreference(true);
-      _initializeChildren();
+      _navigateToHome();
     });
-    Future.microtask(() => _navigateToHome());
   }
 
   void _setUserId(String userId) {
     setState(() {
       _userId = userId;
       Shared.saveLoginSharedPreference(true);
-      _initializeChildren();
     });
   }
 
-  void _initializeChildren() {
-    if (_userId != null) {
-      print('Initializing children with user ID: $_userId');
-      _children = [
-        ChangeNotifierProvider(
-          create: (_) => EventManager(_userId),
-          child: HomeScreen(userId: _userId!),
-        ),
-        const StatsScreen(),
-        FriendsScreen(userId: _userId!),
-      ];
-    } else {
-      print('User ID is null. Cannot initialize children.');
-    }
-  }
-
   Future<void> _checkLoginStatus() async {
-    print('Checking login status...');
     bool? isLoggedIn = await Shared.getUserSharedPreferences();
     if (isLoggedIn == true) {
-      setState(() {
-        _isLoggedIn = true;
-      });
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        print('User is logged in with ID: ${user.uid}');
         _setUserId(user.uid);
+        setState(() {
+          _isLoggedIn = true;
+        });
       } else {
-        print('No current user found.');
         setState(() {
           _isLoggedIn = false;
         });
       }
     } else {
-      print('User is not logged in.');
       setState(() {
         _isLoggedIn = false;
       });
@@ -121,12 +96,10 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _isLoggedIn = false;
       _userId = null;
-      _children = [];
     });
-    if (mounted) {
-      Future.microtask(() {
-        Navigator.pushReplacement(
-          context,
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (navigatorKey.currentState != null) {
+        navigatorKey.currentState!.pushReplacement(
           MaterialPageRoute(
             builder: (context) => SignUpScreen(
               onSkip: _skipRegistration,
@@ -134,8 +107,8 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
         );
-      });
-    }
+      }
+    });
   }
 
   @override
@@ -147,6 +120,7 @@ class _MyAppState extends State<MyApp> {
         ),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         theme: ThemeData(
           primaryColor: const Color(0xFF1E1E2C),
           scaffoldBackgroundColor: const Color(0xFF1E1E2C),
@@ -179,36 +153,48 @@ class _MyAppState extends State<MyApp> {
   }
 
   Widget _buildMainScreen() {
-    if (_children.isEmpty) {
+    if (_userId == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("beawake"),
-        centerTitle: true,
-        actions: [
-          Builder(
-            builder: (context) {
-              return IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () => _signOut(context),
-              );
-            },
-          ),
-        ],
-      ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _children,
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        onTap: onTabTapped,
-        currentIndex: _currentIndex,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: "Stats"),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: "Friends"),
-        ],
+
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => EventManager(_userId),
+        ),
+      ],
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("beawake"),
+          centerTitle: true,
+          actions: [
+            Builder(
+              builder: (context) {
+                return IconButton(
+                  icon: const Icon(Icons.logout),
+                  onPressed: () => _signOut(context),
+                );
+              },
+            ),
+          ],
+        ),
+        body: IndexedStack(
+          index: _currentIndex,
+          children: [
+            HomeScreen(userId: _userId!),
+            const StatsScreen(),
+            FriendsScreen(userId: _userId!),
+          ],
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          onTap: onTabTapped,
+          currentIndex: _currentIndex,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+            BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: "Stats"),
+            BottomNavigationBarItem(icon: Icon(Icons.people), label: "Friends"),
+          ],
+        ),
       ),
     );
   }

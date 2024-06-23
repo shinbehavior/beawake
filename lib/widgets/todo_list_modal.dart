@@ -19,11 +19,12 @@ class _TodoListModalState extends State<TodoListModal> {
   @override
   void initState() {
     super.initState();
-    _fetchTasks();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchTasks());
   }
 
   void _fetchTasks() async {
     final eventManager = Provider.of<EventManager>(context, listen: false);
+    eventManager.setUserId(widget.userId); // Ensure the EventManager has the correct userId
     try {
       await eventManager.fetchTodoList();
       setState(() {
@@ -97,7 +98,7 @@ class _TodoListModalState extends State<TodoListModal> {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      height: MediaQuery.of(context).size.height * 0.5, // Set the height of the modal sheet
+      height: MediaQuery.of(context).size.height * 0.5,
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -105,11 +106,10 @@ class _TodoListModalState extends State<TodoListModal> {
               children: [
                 Text(
                   'TODO LIST',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.headline6,
                 ),
                 TextField(
                   controller: _taskController,
-                  style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     labelText: 'Enter task',
                     suffixIcon: IconButton(

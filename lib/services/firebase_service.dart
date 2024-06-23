@@ -107,7 +107,7 @@ class FirebaseService {
     if (snapshot.exists) {
       return List<Map<String, dynamic>>.from(snapshot['tasks']);
     }
-    return[];
+    return [];
   }
 
   Future<List<Map<String, dynamic>>> fetchUserEvents(String userId) async {

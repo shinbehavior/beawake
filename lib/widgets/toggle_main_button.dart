@@ -34,9 +34,11 @@ class _AnimatedToggleButtonState extends State<AnimatedToggleButton> with Single
   void initIsAwake() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       String lastEventType = await Provider.of<EventManager>(context, listen: false).getLastEvent();
-      setState(() {
-        isAwake = lastEventType != 'awake';
-      });
+      if (mounted) {
+        setState(() {
+          isAwake = lastEventType != 'awake';
+        });
+      }
     });
   }
 
@@ -60,13 +62,17 @@ class _AnimatedToggleButtonState extends State<AnimatedToggleButton> with Single
             String eventType = isAwake ? 'sleep' : 'awake';
             bool success = await Provider.of<EventManager>(context, listen: false).addEvent(eventType);
             if (success) {
-              setState(() {
-                isAwake = !isAwake;
-              });
+              if (mounted) {
+                setState(() {
+                  isAwake = !isAwake;
+                });
+              }
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Invalid transition: Can't toggle $eventType consecutively.")),
-              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Invalid transition: Can't toggle $eventType consecutively.")),
+                );
+              }
             }
           },
           child: ScaleTransition(
