@@ -33,7 +33,7 @@ class _MyAppState extends State<MyApp> {
       _currentIndex = index;
     });
   }
-  
+
   void _navigateToHome() {
     if (mounted) {
       Future.microtask(() {
