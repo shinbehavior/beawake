@@ -140,7 +140,7 @@ class EventManager extends ChangeNotifier {
 
   void clearData() {
     events.clear();
-    todoList.clear();
+    todoLists.clear();
     notifyListeners();
   }
 }
