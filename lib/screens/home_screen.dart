@@ -2,20 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:beawake/widgets/toggle_main_button.dart';
 import 'package:beawake/widgets/event_list.dart';
 import 'package:beawake/widgets/todo_list_modal.dart';
+import 'package:provider/provider.dart';
+import '../providers/event_manager.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final String userId;
 
   const HomeScreen({Key? key, required this.userId}) : super(key: key);
 
-  void _openTodoListModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return TodoListModal(userId: userId);
-      },
-    );
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    final eventManager = Provider.of<EventManager>(context, listen: false);
+    eventManager.setUserId(widget.userId);
+    eventManager.fetchEvents();
   }
 
   @override
@@ -49,6 +54,19 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _openTodoListModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return ChangeNotifierProvider.value(
+          value: Provider.of<EventManager>(context, listen: false),
+          child: TodoListModal(userId: widget.userId),
+        );
+      },
     );
   }
 }

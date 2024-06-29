@@ -1,4 +1,3 @@
-// lib/screens/friends_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_service.dart';
@@ -27,10 +26,20 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   void _loadFriendCode() async {
-    final userDoc = await _firestore.collection('users').doc(widget.userId).get();
-    setState(() {
-      _friendCode = userDoc['friendCode'];
-    });
+    try {
+      final userDoc = await _firestore.collection('users').doc(widget.userId).get();
+      if (mounted) {
+        setState(() {
+          _friendCode = userDoc.exists ? userDoc['friendCode'] : 'No friend code available';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _friendCode = 'Error loading friend code';
+        });
+      }
+    }
   }
 
   void _fetchFriendsData() {
@@ -40,25 +49,30 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _getFriendsData() async {
-    final userDoc = await _firestore.collection('users').doc(widget.userId).get();
-    if (!userDoc.exists) {
+    try {
+      final userDoc = await _firestore.collection('users').doc(widget.userId).get();
+      if (!userDoc.exists) {
+        return [];
+      }
+
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final friendIds = userData['friends'] as List<dynamic>;
+
+      List<Map<String, dynamic>> friendsData = [];
+      for (String friendId in friendIds) {
+        DocumentSnapshot friendDoc = await _firestore.collection('users').doc(friendId).get();
+        if (friendDoc.exists) {
+          Map<String, dynamic> friendData = friendDoc.data() as Map<String, dynamic>;
+          List<Map<String, dynamic>> events = await _firebaseService.fetchUserEvents(friendId);
+          friendData['events'] = events;
+          friendsData.add(friendData);
+        }
+      }
+      return friendsData;
+    } catch (e) {
+      print('Error fetching friends data: $e');
       return [];
     }
-
-    final userData = userDoc.data() as Map<String, dynamic>;
-    final friendIds = userData['friends'] as List<dynamic>;
-
-    List<Map<String, dynamic>> friendsData = [];
-    for (String friendId in friendIds) {
-      DocumentSnapshot friendDoc = await _firestore.collection('users').doc(friendId).get();
-      if (friendDoc.exists) {
-        Map<String, dynamic> friendData = friendDoc.data() as Map<String, dynamic>;
-        List<Map<String, dynamic>> events = await _firebaseService.fetchUserEvents(friendId);
-        friendData['events'] = events;
-        friendsData.add(friendData);
-      }
-    }
-    return friendsData;
   }
 
   void _addFriend() async {
@@ -67,10 +81,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
     if (friendCode.isNotEmpty) {
       try {
         await _firebaseService.addFriend(widget.userId, friendCode);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend added successfully')));
-        _fetchFriendsData();  // Refresh the friends list after adding a friend
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend added successfully')));
+          _fetchFriendsData(); // Refresh the friends list after adding a friend
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error adding friend: $e')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error adding friend: $e')));
+        }
       }
     }
   }
@@ -95,8 +113,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
     return ListTile(
       leading: Icon(icon, color: color),
-      title: Text('${event['type']} at ${event['timestamp']}'),
-      subtitle: Text('User ID: ${event['userId']}'),
+      title: Text(
+        '${event['type']} at ${event['timestamp']}',
+        style: TextStyle(color: Colors.white), // Set title text color
+      ),
+      subtitle: Text(
+        'User ID: ${event['userId']}',
+        style: TextStyle(color: Colors.white70), // Set subtitle text color
+      ),
     );
   }
 
@@ -111,7 +135,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
         ),
       ),
       child: Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.transparent, // Ensure scaffold background is transparent
         appBar: AppBar(
           title: const Text('Friends Page'),
         ),
@@ -123,11 +147,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 children: [
                   TextField(
                     controller: _friendCodeController,
+                    style: TextStyle(color: Colors.white), // Set text color for the input text
                     decoration: InputDecoration(
                       labelText: 'Enter friend code',
+                      labelStyle: TextStyle(color: Colors.white70), // Set label text color
                       suffixIcon: IconButton(
-                        icon: const Icon(Icons.add),
+                        icon: const Icon(Icons.add, color: Colors.white), // Set icon color
                         onPressed: _addFriend,
+                      ),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white70), // Set underline color
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white), // Set underline color when focused
                       ),
                     ),
                   ),
@@ -165,10 +197,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                 backgroundImage: NetworkImage(friendData['avatarUrl']),
                               )
                             : const CircleAvatar(
-                                child: Icon(Icons.person),
+                                child: Icon(Icons.person, color: Colors.white), // Set icon color
+                                backgroundColor: Colors.grey, // Set background color
                               ),
-                        title: Text(friendData['username'] ?? 'No Name'),
-                        subtitle: Text(friendData['email'] ?? 'No Email'),
+                        title: Text(
+                          friendData['username'] ?? 'No Name',
+                          style: TextStyle(color: Colors.white), // Set title text color
+                        ),
+                        subtitle: Text(
+                          friendData['email'] ?? 'No Email',
+                          style: TextStyle(color: Colors.white70), // Set subtitle text color
+                        ),
                         children: events.map((event) => _buildEventTile(event)).toList(),
                       );
                     },
