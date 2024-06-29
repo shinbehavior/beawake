@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 
 class EventManager extends ChangeNotifier {
   List<Event> events = [];
-  List<Map<String, dynamic>> todoList = [];
+  Map<String, List<Map<String, dynamic>>> todoLists = {};
   String? userId;
   bool isAwake = true;
   final FirebaseService _firebaseService = FirebaseService();
@@ -79,21 +79,21 @@ class EventManager extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchTodoList() async {
+  Future<void> fetchTodoLists() async {
     if (userId == null) return;
     try {
-      todoList = await _firebaseService.fetchTodoList(userId!);
+      todoLists = await _firebaseService.fetchTodoLists(userId!);
       notifyListeners();
     } catch (e) {
       print('Failed to fetch todo list: $e');
     }
   }
 
-  Future<void> saveTodoList(List<Map<String, dynamic>> tasks) async {
+  Future<void> saveTodoList(String listName, List<Map<String, dynamic>> tasks) async {
     if (userId == null) return;
     try {
-      await _firebaseService.saveTodoList(userId!, tasks);
-      todoList = tasks;
+      await _firebaseService.saveTodoList(userId!, listName, tasks);
+      todoLists[listName] = tasks;
       notifyListeners();
     } catch (e) {
       print('Failed to save todo list: $e');
