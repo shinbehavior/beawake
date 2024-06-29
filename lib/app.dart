@@ -1,14 +1,11 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:beawake/screens/home_screen.dart';
 import 'package:beawake/screens/friends_screen.dart';
 import 'package:beawake/screens/sign_up_screen.dart';
 import 'package:beawake/screens/stats_screen.dart';
-import 'package:provider/provider.dart';
 import 'providers/event_manager.dart';
 import 'providers/shared.dart';
-
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -18,13 +15,18 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  int _currentIndex = 0;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   bool _isLoggedIn = false;
   String? _userId;
+  late EventManager _eventManager;
+  int _currentIndex = 0;
+  late List<Widget> _children;
 
   @override
   void initState() {
     super.initState();
+    _eventManager = EventManager(null);
+    _children = [];
     _checkLoginStatus();
   }
 
@@ -34,55 +36,15 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  void _navigateToHome() {
-    if (navigatorKey.currentState != null) {
-      navigatorKey.currentState!.pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => _buildMainScreen(),
-        ),
-      );
-    }
-  }
-
-  void _skipRegistration() {
-    setState(() {
-      _isLoggedIn = true;
-      _userId = "skipUser";
-      Shared.saveLoginSharedPreference(true);
-      _navigateToHome();
-    });
-  }
-
-  void _selectMockUser(String mockUserId) {
-    setState(() {
-      _isLoggedIn = true;
-      _userId = mockUserId;
-      Shared.saveLoginSharedPreference(true);
-      _navigateToHome();
-    });
-  }
-
-  void _setUserId(String userId) {
-    setState(() {
-      _userId = userId;
-      Shared.saveLoginSharedPreference(true);
-    });
-  }
-
-  Future<void> _checkLoginStatus() async {
+  void _checkLoginStatus() async {
     bool? isLoggedIn = await Shared.getUserSharedPreferences();
     if (isLoggedIn == true) {
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        _setUserId(user.uid);
-        setState(() {
-          _isLoggedIn = true;
-        });
-      } else {
-        setState(() {
-          _isLoggedIn = false;
-        });
-      }
+      setState(() {
+        _isLoggedIn = true;
+      });
+      // Here you would typically get the user ID from your authentication system
+      // For now, we'll use a placeholder
+      _setUserId("loggedInUserId");
     } else {
       setState(() {
         _isLoggedIn = false;
@@ -90,37 +52,96 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  Future<void> _signOut(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
+  void _setUserId(String userId) {
+    setState(() {
+      _userId = userId;
+      _eventManager.setUserId(userId);
+      Shared.saveLoginSharedPreference(true);
+      _initializeChildren();
+    });
+  }
+
+  void _selectMockUser(String mockUserId) {
+    _setUserId(mockUserId);
+    _navigateToHome();
+  }
+
+  void _navigateToHome() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigatorKey.currentState?.pushReplacement(
+        MaterialPageRoute(builder: (context) => _buildMainScreen()),
+      );
+    });
+  }
+
+  void _initializeChildren() {
+    if (_userId != null) {
+      _children = [
+        ChangeNotifierProvider.value(
+          value: _eventManager,
+          child: HomeScreen(userId: _userId!),
+        ),
+        const StatsScreen(),
+        FriendsScreen(userId: _userId!),
+      ];
+    }
+  }
+
+  Widget _buildMainScreen() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("beawake"),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _signOut,
+          ),
+        ],
+      ),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _children,
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        onTap: onTabTapped,
+        currentIndex: _currentIndex,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: "Stats"),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: "Friends"),
+        ],
+      ),
+    );
+  }
+
+  void _signOut() async {
+    // Implement your sign out logic here
     Shared.saveLoginSharedPreference(false);
     setState(() {
       _isLoggedIn = false;
       _userId = null;
+      _eventManager.clearData();
+      _children = [];
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (navigatorKey.currentState != null) {
-        navigatorKey.currentState!.pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => SignUpScreen(
-              onSkip: _skipRegistration,
-              onSelectMockUser: _selectMockUser,
-            ),
-          ),
-        );
-      }
-    });
+    _navigatorKey.currentState?.pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => SignUpScreen(
+          onSkip: () => _selectMockUser("skipUser"),
+          onSelectMockUser: _selectMockUser,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => EventManager(_userId),
-        ),
+        ChangeNotifierProvider.value(value: _eventManager),
       ],
       child: MaterialApp(
-        navigatorKey: navigatorKey,
+        navigatorKey: _navigatorKey,
         theme: ThemeData(
           primaryColor: const Color(0xFF1E1E2C),
           scaffoldBackgroundColor: const Color(0xFF1E1E2C),
@@ -145,56 +166,9 @@ class _MyAppState extends State<MyApp> {
         home: _isLoggedIn
             ? _buildMainScreen()
             : SignUpScreen(
-                onSkip: _skipRegistration,
+                onSkip: () => _selectMockUser("skipUser"),
                 onSelectMockUser: _selectMockUser,
               ),
-      ),
-    );
-  }
-
-  Widget _buildMainScreen() {
-    if (_userId == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-          create: (_) => EventManager(_userId),
-        ),
-      ],
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("beawake"),
-          centerTitle: true,
-          actions: [
-            Builder(
-              builder: (context) {
-                return IconButton(
-                  icon: const Icon(Icons.logout),
-                  onPressed: () => _signOut(context),
-                );
-              },
-            ),
-          ],
-        ),
-        body: IndexedStack(
-          index: _currentIndex,
-          children: [
-            HomeScreen(userId: _userId!),
-            const StatsScreen(),
-            FriendsScreen(userId: _userId!),
-          ],
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          onTap: onTabTapped,
-          currentIndex: _currentIndex,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-            BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: "Stats"),
-            BottomNavigationBarItem(icon: Icon(Icons.people), label: "Friends"),
-          ],
-        ),
       ),
     );
   }

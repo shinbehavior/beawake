@@ -26,11 +26,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   void _loadFriendCode() async {
-    final userDoc = await _firestore.collection('users').doc(widget.userId).get();
-    if (mounted) {
-      setState(() {
-        _friendCode = userDoc['friendCode'];
-      });
+    try {
+      final userDoc = await _firestore.collection('users').doc(widget.userId).get();
+      if (mounted) {
+        setState(() {
+          _friendCode = userDoc.exists ? userDoc['friendCode'] : 'No friend code available';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _friendCode = 'Error loading friend code';
+        });
+      }
     }
   }
 
@@ -41,25 +49,30 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _getFriendsData() async {
-    final userDoc = await _firestore.collection('users').doc(widget.userId).get();
-    if (!userDoc.exists) {
+    try {
+      final userDoc = await _firestore.collection('users').doc(widget.userId).get();
+      if (!userDoc.exists) {
+        return [];
+      }
+
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final friendIds = userData['friends'] as List<dynamic>;
+
+      List<Map<String, dynamic>> friendsData = [];
+      for (String friendId in friendIds) {
+        DocumentSnapshot friendDoc = await _firestore.collection('users').doc(friendId).get();
+        if (friendDoc.exists) {
+          Map<String, dynamic> friendData = friendDoc.data() as Map<String, dynamic>;
+          List<Map<String, dynamic>> events = await _firebaseService.fetchUserEvents(friendId);
+          friendData['events'] = events;
+          friendsData.add(friendData);
+        }
+      }
+      return friendsData;
+    } catch (e) {
+      print('Error fetching friends data: $e');
       return [];
     }
-
-    final userData = userDoc.data() as Map<String, dynamic>;
-    final friendIds = userData['friends'] as List<dynamic>;
-
-    List<Map<String, dynamic>> friendsData = [];
-    for (String friendId in friendIds) {
-      DocumentSnapshot friendDoc = await _firestore.collection('users').doc(friendId).get();
-      if (friendDoc.exists) {
-        Map<String, dynamic> friendData = friendDoc.data() as Map<String, dynamic>;
-        List<Map<String, dynamic>> events = await _firebaseService.fetchUserEvents(friendId);
-        friendData['events'] = events;
-        friendsData.add(friendData);
-      }
-    }
-    return friendsData;
   }
 
   void _addFriend() async {

@@ -8,13 +8,14 @@ class EventManager extends ChangeNotifier {
   List<Event> events = [];
   List<Map<String, dynamic>> todoList = [];
   String? userId;
+  bool isAwake = true;
   final FirebaseService _firebaseService = FirebaseService();
 
   EventManager(this.userId);
 
   void setUserId(String userId) {
     this.userId = userId;
-    notifyListeners();
+    initializeUserStatus();
   }
 
   String formatDateTime(DateTime dateTime) {
@@ -22,7 +23,9 @@ class EventManager extends ChangeNotifier {
     return formatter.format(dateTime);
   }
 
-  Future<String> getLastEvent() async {
+  Future<void> initializeUserStatus() async {
+    if (userId == null) return;
+    
     try {
       var snapshot = await FirebaseFirestore.instance
           .collection('events')
@@ -31,6 +34,26 @@ class EventManager extends ChangeNotifier {
           .limit(1)
           .get();
 
+      if (snapshot.docs.isNotEmpty) {
+        isAwake = snapshot.docs.first.data()['type'] == 'awake';
+      } else {
+        // If no events, default to awake
+        isAwake = true;
+      }
+      notifyListeners();
+    } catch (e) {
+      print('Failed to initialize user status: $e');
+    }
+  }
+
+  Future<String> getLastEvent() async {
+    try {
+      var snapshot = await FirebaseFirestore.instance
+        .collection('events')
+        .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
       if (snapshot.docs.isNotEmpty) {
         return snapshot.docs.first.data()['type'] as String;
       }
@@ -42,12 +65,13 @@ class EventManager extends ChangeNotifier {
   }
 
   Future<void> fetchEvents() async {
+    if (userId == null) return;
     try {
       var snapshot = await FirebaseFirestore.instance
-          .collection('events')
-          .where('userId', isEqualTo: userId)
-          .orderBy('timestamp', descending: true)
-          .get();
+        .collection('events')
+        .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true)
+        .get();
       events = snapshot.docs.map((doc) => Event.fromJson(doc.data())).toList();
       notifyListeners();
     } catch (e) {
@@ -76,19 +100,31 @@ class EventManager extends ChangeNotifier {
     }
   }
 
+  Future<bool> toggleEvent() async {
+    String newEventType = isAwake ? 'sleep' : 'awake';
+    if (events.isNotEmpty && events.first.type == newEventType) {
+      print("Cannot add the same event type consecutively.");
+      return false;
+    }
+    bool success = await addEvent(newEventType);
+    if (success) {
+      isAwake = !isAwake;
+      notifyListeners();
+    }
+    return success;
+  }
+
   Future<bool> addEvent(String type) async {
     DateTime now = DateTime.now();
     String formattedDate = formatDateTime(now);
     final newEvent = Event(userId!, type, formattedDate);
-
-    if (events.isNotEmpty && events.last.type == type) {
+    if (events.isNotEmpty && events.first.type == type) {
       print("Cannot add the same event type consecutively.");
       return false;
     }
-
     try {
       await _firebaseService.saveEvent(userId!, type, now);
-      events.add(newEvent);
+      events.insert(0, newEvent);
       notifyListeners();
       return true;
     } catch (e) {

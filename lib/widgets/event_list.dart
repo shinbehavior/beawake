@@ -1,4 +1,3 @@
-// lib/widgets/event_list.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -26,7 +25,7 @@ class EventList extends StatelessWidget {
         return ListView.builder(
           itemCount: manager.events.length,
           itemBuilder: (context, index) {
-            final event = manager.events.reversed.toList()[index];
+            final event = manager.events[index];
             return Card(
               margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
               child: ListTile(
