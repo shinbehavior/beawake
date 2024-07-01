@@ -93,29 +93,63 @@ class FirebaseService {
   }
 
   Future<void> saveTodoList(String userId, String listName, List<Map<String, dynamic>> tasks) async {
-    CollectionReference todos = _firestore.collection('todos');
-    final Map<String, dynamic> todoList = {
-      'userId': userId,
-      'listName': listName,
-      'tasks': tasks,
-      'timestamp': DateTime.now().toIso8601String(),
-    };
-    await todos.doc('$userId-$listName').set(todoList);
-  }
-
-  Future<Map<String, List<Map<String, dynamic>>>> fetchTodoLists(String userId) async {
-    QuerySnapshot snapshot = await _firestore.collection('todos')
-        .where('userId', isEqualTo: userId)
-        .get();
-    
-    Map<String, List<Map<String, dynamic>>> todoLists = {};
-    for (var doc in snapshot.docs) {
-      var data = doc.data() as Map<String, dynamic>;
-      todoLists[data['listName']] = List<Map<String, dynamic>>.from(data['tasks']);
+    try {
+      await _firestore.collection('todos').doc('$userId-$listName').set({
+        'userId': userId,
+        'listName': listName,
+        'tasks': tasks.map((task) => {
+          'task': task['task'] ?? '',
+          'status': task['status'] ?? 'pending',
+        }).toList(),
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      print('Todo list saved successfully: $listName');
+    } catch (e) {
+      print('Error saving todo list: $e');
+      throw e;
     }
-    return todoLists;
   }
 
+  Future<void> deleteTodoList(String userId, String listName) async {
+    try {
+      await _firestore.collection('todos').doc('$userId-$listName').delete();
+      print('Todo list deleted successfully: $listName');
+    } catch (e) {
+      print('Error deleting todo list: $e');
+      throw e;
+    }
+  }
+  
+  Future<Map<String, List<Map<String, dynamic>>>> fetchTodoLists(String userId) async {
+    try {
+      QuerySnapshot snapshot = await _firestore.collection('todos')
+          .where('userId', isEqualTo: userId)
+          .get();
+      
+      Map<String, List<Map<String, dynamic>>> todoLists = {};
+      for (var doc in snapshot.docs) {
+        var data = doc.data() as Map<String, dynamic>;
+        String? listName = data['listName'] as String?;
+        if (listName != null && data['tasks'] != null) {
+          List<Map<String, dynamic>> tasks = [];
+          for (var task in data['tasks']) {
+            if (task is Map<String, dynamic>) {
+              tasks.add({
+                'task': task['task'] ?? '',
+                'status': task['status'] ?? 'pending',
+              });
+            }
+          }
+          todoLists[listName] = tasks;
+        }
+      }
+      print('Fetched ${todoLists.length} todo lists for user $userId');
+      return todoLists;
+    } catch (e) {
+      print('Error fetching todo lists: $e');
+      return {};
+    }
+  }
 
   Future<List<Map<String, dynamic>>> fetchUserEvents(String userId) async {
     QuerySnapshot snapshot = await _firestore.collection('events')

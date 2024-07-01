@@ -29,21 +29,17 @@ class _TodoListModalState extends State<TodoListModal> {
 
   void _fetchTodoLists() async {
     final eventManager = Provider.of<EventManager>(context, listen: false);
-    eventManager.setUserId(widget.userId);
-    try {
-      await eventManager.fetchTodoLists();
-      setState(() {
-        _isLoading = false;
-        if (eventManager.todoLists.isEmpty) {
-          _createNewList();
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      print("Failed to fetch todo lists: $e");
-    }
+    setState(() {
+      _isLoading = true;
+    });
+    await eventManager.fetchTodoLists();
+    setState(() {
+      _isLoading = false;
+      if (eventManager.todoLists.isEmpty) {
+        _createNewList();
+      }
+    });
+    print('Fetched ${eventManager.todoLists.length} todo lists in TodoListModal');
   }
 
   String _getRelativeDateName() {
@@ -101,6 +97,42 @@ class _TodoListModalState extends State<TodoListModal> {
                   });
                   Navigator.of(context).pop();
                 }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteCurrentList() {
+    if (_currentListName == null) return;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[800],
+          title: Text('Delete List', style: TextStyle(color: Colors.white)),
+          content: Text('Are you sure you want to delete this list?', style: TextStyle(color: Colors.white)),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel', style: TextStyle(color: Colors.white)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Delete', style: TextStyle(color: Colors.red)),
+              onPressed: () async {
+                final eventManager = Provider.of<EventManager>(context, listen: false);
+                await eventManager.deleteTodoList(_currentListName!);
+                Navigator.of(context).pop();
+                setState(() {
+                  _currentListName = null;
+                  _currentTasks = [];
+                });
+                _fetchTodoLists();
               },
             ),
           ],
@@ -174,10 +206,15 @@ class _TodoListModalState extends State<TodoListModal> {
     }
     final eventManager = Provider.of<EventManager>(context, listen: false);
     await eventManager.saveTodoList(_currentListName!, _currentTasks);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('List saved successfully')),
+    );
+    print('Saved list: $_currentListName with ${_currentTasks.length} tasks');
     setState(() {
       _currentListName = null;
       _currentTasks = [];
     });
+    _fetchTodoLists();
   }
 
   @override
@@ -269,6 +306,10 @@ class _TodoListModalState extends State<TodoListModal> {
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.white),
                         onPressed: _showEditListNameDialog,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: _deleteCurrentList,
                       ),
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Colors.white),

@@ -14,8 +14,10 @@ class EventManager extends ChangeNotifier {
   EventManager(this.userId);
 
   void setUserId(String userId) {
+    print('Setting user ID: $userId');
     this.userId = userId;
     initializeUserStatus();
+    fetchTodoLists();
   }
 
   String formatDateTime(DateTime dateTime) {
@@ -80,23 +82,48 @@ class EventManager extends ChangeNotifier {
   }
 
   Future<void> fetchTodoLists() async {
-    if (userId == null) return;
+    if (userId == null) {
+      print('User ID is null, cannot fetch todo lists');
+      return;
+    }
     try {
       todoLists = await _firebaseService.fetchTodoLists(userId!);
+      print('Fetched ${todoLists.length} todo lists');
       notifyListeners();
     } catch (e) {
-      print('Failed to fetch todo list: $e');
+      print('Failed to fetch todo lists: $e');
+      todoLists = {}; // Initialize with an empty map if there's an error
+      notifyListeners();
     }
   }
 
   Future<void> saveTodoList(String listName, List<Map<String, dynamic>> tasks) async {
-    if (userId == null) return;
+    if (userId == null) {
+      print('User ID is null, cannot save todo list');
+      return;
+    }
     try {
       await _firebaseService.saveTodoList(userId!, listName, tasks);
       todoLists[listName] = tasks;
+      print('Saved todo list: $listName');
       notifyListeners();
     } catch (e) {
       print('Failed to save todo list: $e');
+    }
+  }
+
+  Future<void> deleteTodoList(String listName) async {
+    if (userId == null) {
+      print('User ID is null, cannot delete todo list');
+      return;
+    }
+    try {
+      await _firebaseService.deleteTodoList(userId!, listName);
+      todoLists.remove(listName);
+      print('Deleted todo list: $listName');
+      notifyListeners();
+    } catch (e) {
+      print('Failed to delete todo list: $e');
     }
   }
 
