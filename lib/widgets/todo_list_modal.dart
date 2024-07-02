@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/event_manager.dart';
 import 'package:intl/intl.dart';
 
-class TodoListModal extends StatefulWidget {
+class TodoListModal extends ConsumerStatefulWidget {
   final String userId;
 
   const TodoListModal({Key? key, required this.userId}) : super(key: key);
 
   @override
-  _TodoListModalState createState() => _TodoListModalState();
+  ConsumerState<TodoListModal> createState() => _TodoListModalState();
 }
 
-class _TodoListModalState extends State<TodoListModal> {
+class _TodoListModalState extends ConsumerState<TodoListModal> {
   final TextEditingController _taskController = TextEditingController();
   final TextEditingController _listNameController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
@@ -28,7 +28,7 @@ class _TodoListModalState extends State<TodoListModal> {
   }
 
   void _fetchTodoLists() async {
-    final eventManager = Provider.of<EventManager>(context, listen: false);
+    final eventManager = ref.read(eventManagerProvider);
     setState(() {
       _isLoading = true;
     });
@@ -39,7 +39,6 @@ class _TodoListModalState extends State<TodoListModal> {
         _createNewList();
       }
     });
-    print('Fetched ${eventManager.todoLists.length} todo lists in TodoListModal');
   }
 
   String _getRelativeDateName() {
@@ -125,7 +124,7 @@ class _TodoListModalState extends State<TodoListModal> {
             TextButton(
               child: Text('Delete', style: TextStyle(color: Colors.red)),
               onPressed: () async {
-                final eventManager = Provider.of<EventManager>(context, listen: false);
+                final eventManager = ref.read(eventManagerProvider);
                 await eventManager.deleteTodoList(_currentListName!);
                 Navigator.of(context).pop();
                 setState(() {
@@ -204,7 +203,7 @@ class _TodoListModalState extends State<TodoListModal> {
       );
       return;
     }
-    final eventManager = Provider.of<EventManager>(context, listen: false);
+    final eventManager = ref.read(eventManagerProvider);
     await eventManager.saveTodoList(_currentListName!, _currentTasks);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('List saved successfully')),
@@ -219,7 +218,7 @@ class _TodoListModalState extends State<TodoListModal> {
 
   @override
   Widget build(BuildContext context) {
-    final eventManager = Provider.of<EventManager>(context);
+    final eventManager = ref.watch(eventManagerProvider);
     
     return Container(
       padding: const EdgeInsets.all(16.0),

@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/firebase_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-class FriendsScreen extends StatefulWidget {
+// Assume we have a FriendsProvider that manages the state of friends
+final friendsProvider = StateNotifierProvider<FriendsNotifier, List<Friend>>((ref) => FriendsNotifier());
+
+class FriendsScreen extends ConsumerStatefulWidget {
   final String userId;
 
   const FriendsScreen({Key? key, required this.userId}) : super(key: key);
@@ -11,213 +17,189 @@ class FriendsScreen extends StatefulWidget {
   _FriendsScreenState createState() => _FriendsScreenState();
 }
 
-class _FriendsScreenState extends State<FriendsScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseService _firebaseService = FirebaseService();
-  final TextEditingController _friendCodeController = TextEditingController();
-  String? _friendCode;
-  Future<List<Map<String, dynamic>>>? _friendsFuture;
+class _FriendsScreenState extends ConsumerState<FriendsScreen> {
+  final RefreshController _refreshController = RefreshController(initialRefresh: false);
+  final TextEditingController _searchController = TextEditingController();
+  bool _isListView = true;
 
   @override
   void initState() {
     super.initState();
-    _loadFriendCode();
-    _fetchFriendsData();
-  }
-
-  void _loadFriendCode() async {
-    try {
-      final userDoc = await _firestore.collection('users').doc(widget.userId).get();
-      if (mounted) {
-        setState(() {
-          _friendCode = userDoc.exists ? userDoc['friendCode'] : 'No friend code available';
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _friendCode = 'Error loading friend code';
-        });
-      }
-    }
-  }
-
-  void _fetchFriendsData() {
-    setState(() {
-      _friendsFuture = _getFriendsData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(friendsProvider.notifier).fetchFriends(widget.userId);
     });
   }
 
-  Future<List<Map<String, dynamic>>> _getFriendsData() async {
-    try {
-      final userDoc = await _firestore.collection('users').doc(widget.userId).get();
-      if (!userDoc.exists) {
-        return [];
-      }
-
-      final userData = userDoc.data() as Map<String, dynamic>;
-      final friendIds = userData['friends'] as List<dynamic>;
-
-      List<Map<String, dynamic>> friendsData = [];
-      for (String friendId in friendIds) {
-        DocumentSnapshot friendDoc = await _firestore.collection('users').doc(friendId).get();
-        if (friendDoc.exists) {
-          Map<String, dynamic> friendData = friendDoc.data() as Map<String, dynamic>;
-          List<Map<String, dynamic>> events = await _firebaseService.fetchUserEvents(friendId);
-          friendData['events'] = events;
-          friendsData.add(friendData);
-        }
-      }
-      return friendsData;
-    } catch (e) {
-      print('Error fetching friends data: $e');
-      return [];
-    }
-  }
-
-  void _addFriend() async {
-    final friendCode = _friendCodeController.text;
-
-    if (friendCode.isNotEmpty) {
-      try {
-        await _firebaseService.addFriend(widget.userId, friendCode);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend added successfully')));
-          _fetchFriendsData(); // Refresh the friends list after adding a friend
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error adding friend: $e')));
-        }
-      }
-    }
-  }
-
-  Widget _buildEventTile(Map<String, dynamic> event) {
-    IconData icon;
-    Color color;
-
-    switch (event['type']) {
-      case 'awake':
-        icon = Icons.wb_sunny;
-        color = Colors.orange;
-        break;
-      case 'sleep':
-        icon = Icons.nightlight_round;
-        color = Colors.blue;
-        break;
-      default:
-        icon = Icons.event;
-        color = Colors.grey;
-    }
-
-    return ListTile(
-      leading: Icon(icon, color: color),
-      title: Text(
-        '${event['type']} at ${event['timestamp']}',
-        style: TextStyle(color: Colors.white), // Set title text color
-      ),
-      subtitle: Text(
-        'User ID: ${event['userId']}',
-        style: TextStyle(color: Colors.white70), // Set subtitle text color
-      ),
-    );
+  void _onRefresh() async {
+    await ref.read(friendsProvider.notifier).fetchFriends(widget.userId);
+    _refreshController.refreshCompleted();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1E1E2C), Color(0xFF2C2C38)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+    final friends = ref.watch(friendsProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Friends', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: Icon(_isListView ? Icons.grid_view : Icons.list),
+            onPressed: () => setState(() => _isListView = !_isListView),
+          ),
+        ],
       ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent, // Ensure scaffold background is transparent
-        appBar: AppBar(
-          title: const Text('Friends Page'),
-        ),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _friendCodeController,
-                    style: TextStyle(color: Colors.white), // Set text color for the input text
-                    decoration: InputDecoration(
-                      labelText: 'Enter friend code',
-                      labelStyle: TextStyle(color: Colors.white70), // Set label text color
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.add, color: Colors.white), // Set icon color
-                        onPressed: _addFriend,
-                      ),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white70), // Set underline color
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white), // Set underline color when focused
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Your Friend Code: ${_friendCode ?? "loading..."}',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                ],
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search friends',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
+              onChanged: (value) {
+                ref.read(friendsProvider.notifier).searchFriends(value);
+              },
             ),
-            Expanded(
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _friendsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(child: Text('No friends found.'));
-                  }
-
-                  var friendsData = snapshot.data!;
-
-                  return ListView.builder(
-                    itemCount: friendsData.length,
-                    itemBuilder: (context, index) {
-                      var friendData = friendsData[index];
-                      var events = friendData['events'] as List<Map<String, dynamic>>;
-
-                      return ExpansionTile(
-                        leading: friendData['avatarUrl'] != null
-                            ? CircleAvatar(
-                                backgroundImage: NetworkImage(friendData['avatarUrl']),
-                              )
-                            : const CircleAvatar(
-                                child: Icon(Icons.person, color: Colors.white), // Set icon color
-                                backgroundColor: Colors.grey, // Set background color
-                              ),
-                        title: Text(
-                          friendData['username'] ?? 'No Name',
-                          style: TextStyle(color: Colors.white), // Set title text color
-                        ),
-                        subtitle: Text(
-                          friendData['email'] ?? 'No Email',
-                          style: TextStyle(color: Colors.white70), // Set subtitle text color
-                        ),
-                        children: events.map((event) => _buildEventTile(event)).toList(),
-                      );
-                    },
-                  );
-                },
-              ),
+          ),
+          Expanded(
+            child: SmartRefresher(
+              controller: _refreshController,
+              onRefresh: _onRefresh,
+              child: friends.isEmpty
+                  ? _buildShimmerList()
+                  : _isListView
+                      ? _buildListView(friends)
+                      : _buildGridView(friends),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.person_add),
+        onPressed: () {
+          // Show add friend dialog
+        },
       ),
     );
+  }
+
+  Widget _buildShimmerList() {
+    return ListView.builder(
+      itemCount: 10,
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: ListTile(
+            leading: CircleAvatar(),
+            title: Container(height: 16, color: Colors.white),
+            subtitle: Container(height: 12, color: Colors.white),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildListView(List<Friend> friends) {
+    return ListView.builder(
+      itemCount: friends.length,
+      itemBuilder: (context, index) {
+        final friend = friends[index];
+        return Slidable(
+          endActionPane: ActionPane(
+            motion: ScrollMotion(),
+            children: [
+              SlidableAction(
+                onPressed: (_) {
+                  // Remove friend action
+                },
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                icon: Icons.delete,
+                label: 'Remove',
+              ),
+            ],
+          ),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundImage: NetworkImage(friend.avatarUrl),
+            ),
+            title: Text(friend.name, style: GoogleFonts.poppins()),
+            subtitle: Text(friend.email),
+            trailing: Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              // Navigate to friend details
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGridView(List<Friend> friends) {
+    return GridView.builder(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.75,
+      ),
+      itemCount: friends.length,
+      itemBuilder: (context, index) {
+        final friend = friends[index];
+        return Card(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundImage: NetworkImage(friend.avatarUrl),
+              ),
+              SizedBox(height: 8),
+              Text(friend.name, style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+              Text(friend.email, style: TextStyle(fontSize: 12)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class Friend {
+  final String id;
+  final String name;
+  final String email;
+  final String avatarUrl;
+  final String currentState;
+  final DateTime currentStateTime;
+  final String previousState;
+  final DateTime previousStateTime;
+
+  Friend({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.avatarUrl,
+    required this.currentState,
+    required this.currentStateTime,
+    required this.previousState,
+    required this.previousStateTime,
+  });
+}
+
+class FriendsNotifier extends StateNotifier<List<Friend>> {
+  FriendsNotifier() : super([]);
+
+  Future<void> fetchFriends(String userId) async {
+    // Implement friend fetching logic
+  }
+
+  void searchFriends(String query) {
+    // Implement friend search logic
   }
 }

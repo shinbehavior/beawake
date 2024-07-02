@@ -1,30 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:beawake/widgets/toggle_main_button.dart';
 import 'package:beawake/widgets/event_list.dart';
 import 'package:beawake/widgets/todo_list_modal.dart';
-import 'package:provider/provider.dart';
 import '../providers/event_manager.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerWidget {
   final String userId;
 
   const HomeScreen({Key? key, required this.userId}) : super(key: key);
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final eventManager = ref.watch(eventManagerProvider);
 
-class _HomeScreenState extends State<HomeScreen> {
-  @override
-  void initState() {
-    super.initState();
-    final eventManager = Provider.of<EventManager>(context, listen: false);
-    eventManager.setUserId(widget.userId);
-    eventManager.fetchEvents();
-  }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      eventManager.setUserId(userId);
+      eventManager.fetchEvents();
+    });
 
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Home'),
@@ -62,10 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       isScrollControlled: true,
       builder: (BuildContext context) {
-        return ChangeNotifierProvider.value(
-          value: Provider.of<EventManager>(context, listen: false),
-          child: TodoListModal(userId: widget.userId),
-        );
+        return TodoListModal(userId: userId);
       },
     );
   }

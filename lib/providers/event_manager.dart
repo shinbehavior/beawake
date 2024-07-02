@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/awake_sleep_event.dart';
 import '../services/firebase_service.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final eventManagerProvider = ChangeNotifierProvider<EventManager>((ref) => EventManager(null));
 
 class EventManager extends ChangeNotifier {
   List<Event> events = [];
@@ -17,6 +20,7 @@ class EventManager extends ChangeNotifier {
     print('Setting user ID: $userId');
     this.userId = userId;
     initializeUserStatus();
+    fetchEvents();
     fetchTodoLists();
   }
 
@@ -152,6 +156,7 @@ class EventManager extends ChangeNotifier {
     try {
       await _firebaseService.saveEvent(userId!, type, now);
       events.insert(0, newEvent);
+      print("Event added: $type at $formattedDate");
       notifyListeners();
       return true;
     } catch (e) {
