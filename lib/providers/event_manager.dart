@@ -17,11 +17,13 @@ class EventManager extends ChangeNotifier {
   EventManager(this.userId);
 
   void setUserId(String userId) {
-    print('Setting user ID: $userId');
-    this.userId = userId;
-    initializeUserStatus();
-    fetchEvents();
-    fetchTodoLists();
+    if (this.userId != userId) {
+      print('Setting user ID: $userId');
+      this.userId = userId;
+      initializeUserStatus();
+      fetchEvents();
+      fetchTodoLists();
+    }
   }
 
   String formatDateTime(DateTime dateTime) {

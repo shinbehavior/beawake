@@ -27,11 +27,17 @@ class FirebaseService {
       if (firebaseUser != null) {
         final userDoc = await _firestore.collection('users').doc(firebaseUser.uid).get();
         if (!userDoc.exists) {
+          String friendCode = await _generateUniqueFriendCode();
           await _firestore.collection('users').doc(firebaseUser.uid).set({
             'email': appleIdCredential.email,
             'fullName': '${appleIdCredential.givenName} ${appleIdCredential.familyName}',
-            'friendCode': await _generateUniqueFriendCode(),
+            'friendCode': friendCode,
             'friends': [],
+            'avatarUrl': 'https://i.pravatar.cc/150?img=${firebaseUser.uid.hashCode % 70}',
+            'currentState': 'awake',
+            'currentStateTime': FieldValue.serverTimestamp(),
+            'previousState': 'sleep',
+            'previousStateTime': FieldValue.serverTimestamp(),
           });
         }
       }
@@ -59,20 +65,111 @@ class FirebaseService {
     return snapshot.docs.isEmpty;
   }
 
-  Future<void> createMockUsers() async {
-    await _firestore.collection('users').doc('mockUser1Id').set({
-      'email': 'mockuser1@example.com',
-      'fullName': 'Mock User 1',
-      'friendCode': await _generateUniqueFriendCode(),
-      'friends': [],
-    });
+  Future<void> updateUserState(String userId, String newState) async {
+    try {
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
+      String currentState = userDoc['currentState'];
+      DateTime currentStateTime = (userDoc['currentStateTime'] as Timestamp).toDate();
 
-    await _firestore.collection('users').doc('mockUser2Id').set({
-      'email': 'mockuser2@example.com',
-      'fullName': 'Mock User 2',
-      'friendCode': await _generateUniqueFriendCode(),
-      'friends': [],
-    });
+      await _firestore.collection('users').doc(userId).update({
+        'previousState': currentState,
+        'previousStateTime': Timestamp.fromDate(currentStateTime),
+        'currentState': newState,
+        'currentStateTime': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating user state: $e');
+      throw e;
+    }
+  }
+
+  Future<void> createMockUsers() async {
+      List<Map<String, dynamic>> mockUsers = [
+        {
+          'id': 'mockUser1Id',
+          'email': 'mockuser1@example.com',
+          'fullName': 'Alice Smith',
+          'friendCode': await _generateUniqueFriendCode(),
+          'avatarUrl': 'https://i.pravatar.cc/150?img=1',
+          'currentState': 'awake',
+          'currentStateTime': FieldValue.serverTimestamp(),
+          'previousState': 'sleep',
+          'previousStateTime': FieldValue.serverTimestamp(),
+          'friends': ['mockUser2Id', 'mockUser3Id'],
+        },
+        {
+          'id': 'mockUser2Id',
+          'email': 'mockuser2@example.com',
+          'fullName': 'Bob Johnson',
+          'friendCode': await _generateUniqueFriendCode(),
+          'avatarUrl': 'https://i.pravatar.cc/150?img=2',
+          'currentState': 'sleep',
+          'currentStateTime': FieldValue.serverTimestamp(),
+          'previousState': 'awake',
+          'previousStateTime': FieldValue.serverTimestamp(),
+          'friends': ['mockUser1Id', 'mockUser3Id'],
+        },
+        {
+          'id': 'mockUser3Id',
+          'email': 'mockuser3@example.com',
+          'fullName': 'Charlie Brown',
+          'friendCode': await _generateUniqueFriendCode(),
+          'avatarUrl': 'https://i.pravatar.cc/150?img=3',
+          'currentState': 'awake',
+          'currentStateTime': FieldValue.serverTimestamp(),
+          'previousState': 'sleep',
+          'previousStateTime': FieldValue.serverTimestamp(),
+          'friends': ['mockUser1Id', 'mockUser2Id'],
+        },
+      ];
+
+      for (var user in mockUsers) {
+        await _firestore.collection('users').doc(user['id']).set(user);
+      }
+    }
+
+  Future<List<Friend>> fetchFriends(String userId) async {
+    try {
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
+      
+      if (!userDoc.exists) {
+        print('User document does not exist for userId: $userId');
+        return [];
+      }
+
+      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+      if (!userData.containsKey('friends')) {
+        print('Friends field does not exist in user document for userId: $userId');
+        return [];
+      }
+
+      List<String> friendIds = List<String>.from(userData['friends'] ?? []);
+
+      List<Friend> friends = [];
+      for (String friendId in friendIds) {
+        DocumentSnapshot friendDoc = await _firestore.collection('users').doc(friendId).get();
+        if (friendDoc.exists) {
+          Map<String, dynamic> friendData = friendDoc.data() as Map<String, dynamic>;
+          friends.add(Friend(
+            id: friendId,
+            name: friendData['fullName'] ?? 'Unknown',
+            email: friendData['email'] ?? 'Unknown',
+            avatarUrl: friendData['avatarUrl'] ?? 'https://i.pravatar.cc/150',
+            currentState: friendData['currentState'] ?? 'Unknown',
+            currentStateTime: (friendData['currentStateTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            previousState: friendData['previousState'] ?? 'Unknown',
+            previousStateTime: (friendData['previousStateTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          ));
+        } else {
+          print('Friend document does not exist for friendId: $friendId');
+        }
+      }
+
+      return friends;
+    } catch (e) {
+      print('Error fetching friends: $e');
+      return [];
+    }
   }
 
   Future<void> updateUserProfile(String userId, String username, bool skipAvatar) async {
@@ -160,6 +257,11 @@ class FirebaseService {
     return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
   }
 
+  Future<String> getUserFriendCode(String userId) async {
+    DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
+    return userDoc['friendCode'] as String;
+  }
+
   Future<void> addFriend(String userId, String friendCode) async {
     final querySnapshot = await _firestore.collection('users').where('friendCode', isEqualTo: friendCode).get();
 
@@ -177,4 +279,26 @@ class FirebaseService {
       throw Exception('No user found with this friend code');
     }
   }
+}
+
+class Friend {
+  final String id;
+  final String name;
+  final String email;
+  final String avatarUrl;
+  final String currentState;
+  final DateTime currentStateTime;
+  final String previousState;
+  final DateTime previousStateTime;
+
+  Friend({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.avatarUrl,
+    required this.currentState,
+    required this.currentStateTime,
+    required this.previousState,
+    required this.previousStateTime,
+  });
 }

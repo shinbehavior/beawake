@@ -28,6 +28,10 @@ class SignUpScreen extends StatelessWidget {
               onPressed: () => onSelectMockUser("mockUser2Id"),
               child: const Text('Use Mock User 2'),
             ),
+            ElevatedButton(
+              onPressed: () => onSelectMockUser("mockUser3Id"),
+              child: const Text('Use Mock User 3'),
+            ),
           ],
         ),
       ),

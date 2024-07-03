@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'app.dart';
+import 'services/firebase_service.dart';  // Add this import
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,6 +11,13 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    
+    // Create FirebaseService instance
+    final firebaseService = FirebaseService();
+    
+    // Create mock users (you might want to do this only in debug mode)
+    await firebaseService.createMockUsers();
+    
     runApp(
       ProviderScope(
         child: MyApp(),
