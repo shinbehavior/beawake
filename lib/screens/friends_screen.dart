@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
@@ -38,7 +40,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     setState(() {
       _userFriendCode = friendCode;
     });
-  }
+  } 
 
 void _showAddFriendDialog() {
   final TextEditingController codeController = TextEditingController();
@@ -166,15 +168,75 @@ void _showAddFriendDialog() {
       itemCount: friends.length,
       itemBuilder: (context, index) {
         final friend = friends[index];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: NetworkImage(friend.avatarUrl),
-          ),
-          title: Text(friend.name, style: TextStyle(color: Colors.white)),
-          subtitle: Text(
-            '${friend.currentState} since ${_formatTime(friend.currentStateTime)}',
-            style: TextStyle(color: Colors.grey[400]),
-          ),
+        return FutureBuilder<Map<String, dynamic>> (
+          future: ref.read(firebaseServiceProvider).getFriendStatus(friend.id),
+          builder: ((context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: NetworkImage(friend.avatarUrl),
+                ),
+                title: Text(friend.name, style: TextStyle(color: Colors.white)),
+                subtitle: Text('Loading status...', style: TextStyle(color: Colors.grey)),
+              );
+            }
+
+            if (snapshot.hasError || !snapshot.hasData) {
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: NetworkImage(friend.avatarUrl),
+                ),
+                title: Text(friend.name, style: TextStyle(color: Colors.white)),
+                subtitle: Text('Status unavailable', style: TextStyle(color: Colors.grey)),
+              );
+            }
+
+            final status = snapshot.data!;
+            final currentState = status['currentState'] as String;
+            final currentStateTime = (status['currentStateTime'] as Timestamp).toDate();
+            final previousState = status['previousState'] as String;
+            final previousStateTime = (status['previousStateTime'] as Timestamp).toDate();
+
+            return ListTile(
+              leading: Stack(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: NetworkImage(friend.avatarUrl),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: currentState == 'awake' ? Colors.green : Colors.blue,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        currentState == 'awake' ? Icons.wb_sunny : Icons.nightlight_round,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                ],
+              ),
+              title: Text(friend.name, style: TextStyle(color: Colors.white)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${currentState.capitalize()} since ${_formatTime(currentStateTime)}',
+                    style: TextStyle(color: currentState == 'awake' ? Colors.green[300] : Colors.blue[300]),
+                  ),
+                  Text(
+                    'Last ${previousState.capitalize()} at ${_formatTime(previousStateTime)}',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
+              ),
+            );
+          }),
         );
       },
     );
@@ -182,5 +244,11 @@ void _showAddFriendDialog() {
 
   String _formatTime(DateTime time) {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+extension StringExtension on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${this.substring(1)}";
   }
 }

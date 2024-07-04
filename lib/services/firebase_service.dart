@@ -257,6 +257,23 @@ class FirebaseService {
     return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
   }
 
+  Future<Map<String, dynamic>> getFriendStatus(String friendId) async {
+    try {
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(friendId).get();
+      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+
+      return {
+        'currentState': userData['currentState'],
+        'currentStateTime': userData['currentStateTime'],
+        'previousState': userData['previousState'],
+        'previousStateTime': userData['previousStateTime'],
+      };
+    } catch (e) {
+      print('Error fetching friend status: $e');
+      return {};
+    }
+  }
+ 
   Future<String> getUserFriendCode(String userId) async {
     DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
     return userDoc['friendCode'] as String;
