@@ -1,10 +1,11 @@
-import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
-import '../providers/providers.dart';
 import '../services/firebase_service.dart';
+import '../providers/providers.dart';
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/awake_sleep_event.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -29,76 +30,76 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     });
   }
 
-  void _onRefresh() async {
-    await ref.read(friendsProvider.notifier).fetchFriends(widget.userId);
-    _refreshController.refreshCompleted();
-  }
-
   Future<void> _fetchUserFriendCode() async {
     final firebaseService = ref.read(firebaseServiceProvider);
     final friendCode = await firebaseService.getUserFriendCode(widget.userId);
     setState(() {
       _userFriendCode = friendCode;
     });
-  } 
+  }
 
-void _showAddFriendDialog() {
-  final TextEditingController codeController = TextEditingController();
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        backgroundColor: const Color(0xFF2C2C38),
-        title: Text('Add Friend', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Your Friend Code:', style: TextStyle(color: Colors.white70)),
-            SizedBox(height: 8),
-            Text(
-              _userFriendCode,
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: codeController,
-              style: TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: "Enter friend's code",
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey[600]!)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+  void _onRefresh() async {
+    await ref.read(friendsProvider.notifier).fetchFriends(widget.userId);
+    _refreshController.refreshCompleted();
+  }
+
+  void _showAddFriendDialog() {
+    final TextEditingController codeController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2C2C38),
+          title: Text('Add Friend', style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Your Friend Code:', style: TextStyle(color: Colors.white70)),
+              SizedBox(height: 8),
+              Text(
+                _userFriendCode,
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
               ),
+              SizedBox(height: 16),
+              TextField(
+                controller: codeController,
+                style: TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: "Enter friend's code",
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey[600]!)),
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel', style: TextStyle(color: Colors.grey[400])),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: Text('Add', style: TextStyle(color: Colors.white)),
+              onPressed: () async {
+                try {
+                  await ref.read(friendsProvider.notifier).addFriend(widget.userId, codeController.text);
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Friend added successfully'), backgroundColor: Colors.green),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error adding friend: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              },
             ),
           ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            child: Text('Cancel', style: TextStyle(color: Colors.grey[400])),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          TextButton(
-            child: Text('Add', style: TextStyle(color: Colors.white)),
-            onPressed: () async {
-              try {
-                await ref.read(friendsProvider.notifier).addFriend(widget.userId, codeController.text);
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Friend added successfully'), backgroundColor: Colors.green),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error adding friend: $e'), backgroundColor: Colors.red),
-                );
-              }
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -168,82 +169,70 @@ void _showAddFriendDialog() {
       itemCount: friends.length,
       itemBuilder: (context, index) {
         final friend = friends[index];
-        return FutureBuilder<Map<String, dynamic>> (
-          future: ref.read(firebaseServiceProvider).getFriendStatus(friend.id),
-          builder: ((context, snapshot) {
+        return FutureBuilder<List<Event>>(
+          future: ref.read(firebaseServiceProvider).fetchUserEvents(friend.id),
+          builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: NetworkImage(friend.avatarUrl),
-                ),
-                title: Text(friend.name, style: TextStyle(color: Colors.white)),
-                subtitle: Text('Loading status...', style: TextStyle(color: Colors.grey)),
-              );
+              return _buildFriendListTile(friend, 'Loading...', '', Colors.grey);
             }
 
-            if (snapshot.hasError || !snapshot.hasData) {
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: NetworkImage(friend.avatarUrl),
-                ),
-                title: Text(friend.name, style: TextStyle(color: Colors.white)),
-                subtitle: Text('Status unavailable', style: TextStyle(color: Colors.grey)),
-              );
+            if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+              return _buildFriendListTile(friend, 'Status unavailable', '', Colors.grey);
             }
 
-            final status = snapshot.data!;
-            final currentState = status['currentState'] as String;
-            final currentStateTime = (status['currentStateTime'] as Timestamp).toDate();
-            final previousState = status['previousState'] as String;
-            final previousStateTime = (status['previousStateTime'] as Timestamp).toDate();
+            final events = snapshot.data!;
+            final latestEvent = events.first;
+            String previousEventType = events.length > 1 ? events[1].type : 'Unknown';
 
-            return ListTile(
-              leading: Stack(
-                children: [
-                  CircleAvatar(
-                    backgroundImage: NetworkImage(friend.avatarUrl),
-                  ),
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      padding: EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: currentState == 'awake' ? Colors.green : Colors.blue,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        currentState == 'awake' ? Icons.wb_sunny : Icons.nightlight_round,
-                        size: 12,
-                        color: Colors.white,
-                      ),
-                    ),
-                  )
-                ],
-              ),
-              title: Text(friend.name, style: TextStyle(color: Colors.white)),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${currentState.capitalize()} since ${_formatTime(currentStateTime)}',
-                    style: TextStyle(color: currentState == 'awake' ? Colors.green[300] : Colors.blue[300]),
-                  ),
-                  Text(
-                    'Last ${previousState.capitalize()} at ${_formatTime(previousStateTime)}',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                ],
-              ),
-            );
-          }),
+            final stateColor = latestEvent.type == 'awake' ? Colors.green : Colors.blue;
+            final currentStateString = '${latestEvent.type.capitalize()} since ${_formatTime(DateTime.parse(latestEvent.timestamp))}';
+            final previousStateString = 'Last ${previousEventType.capitalize()} at ${events.length > 1 ? _formatTime(DateTime.parse(events[1].timestamp)) : 'Unknown'}';
+
+            return _buildFriendListTile(friend, currentStateString, previousStateString, stateColor);
+          },
         );
       },
     );
   }
 
-  String _formatTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  Widget _buildFriendListTile(Friend friend, String mainStatus, String subStatus, Color stateColor) {
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundImage: NetworkImage(friend.avatarUrl),
+        radius: 25,
+      ),
+      title: Text(friend.name, style: TextStyle(color: Colors.white, fontSize: 16)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            mainStatus,
+            style: TextStyle(color: stateColor, fontSize: 14),
+          ),
+          if (subStatus.isNotEmpty)
+            Text(
+              subStatus,
+              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+            ),
+        ],
+      ),
+      contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+    );
+  }
+
+  String _formatTime(DateTime eventTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(Duration(days: 1));
+    final eventDate = DateTime(eventTime.year, eventTime.month, eventTime.day);
+
+    if (eventDate == today) {
+      return DateFormat('HH:mm').format(eventTime);
+    } else if (eventDate == yesterday) {
+      return 'Yesterday ${DateFormat('HH:mm').format(eventTime)}';
+    } else {
+      return DateFormat('MMM d, HH:mm').format(eventTime);
+    }
   }
 }
 

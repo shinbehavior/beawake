@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:beawake/utils/friend_code.dart';
+import '../models/awake_sleep_event.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -90,7 +91,7 @@ class FirebaseService {
           'email': 'mockuser1@example.com',
           'fullName': 'Alice Smith',
           'friendCode': await _generateUniqueFriendCode(),
-          'avatarUrl': 'https://i.pravatar.cc/150?img=1',
+          'avatarUrl': 'https://i.pinimg.com/736x/63/ba/02/63ba0265bdb20faedbfd7578253a07f6.jpg',
           'currentState': 'awake',
           'currentStateTime': FieldValue.serverTimestamp(),
           'previousState': 'sleep',
@@ -102,7 +103,7 @@ class FirebaseService {
           'email': 'mockuser2@example.com',
           'fullName': 'Bob Johnson',
           'friendCode': await _generateUniqueFriendCode(),
-          'avatarUrl': 'https://i.pravatar.cc/150?img=2',
+          'avatarUrl': 'https://i.pinimg.com/736x/4a/cf/54/4acf54fd5b02c1010aa5a92e47b6aedb.jpg',
           'currentState': 'sleep',
           'currentStateTime': FieldValue.serverTimestamp(),
           'previousState': 'awake',
@@ -114,7 +115,7 @@ class FirebaseService {
           'email': 'mockuser3@example.com',
           'fullName': 'Charlie Brown',
           'friendCode': await _generateUniqueFriendCode(),
-          'avatarUrl': 'https://i.pravatar.cc/150?img=3',
+          'avatarUrl': 'https://i.pinimg.com/736x/0c/76/a1/0c76a1717bd6beef3e790b89d0c3ffd8.jpg',
           'currentState': 'awake',
           'currentStateTime': FieldValue.serverTimestamp(),
           'previousState': 'sleep',
@@ -248,13 +249,19 @@ class FirebaseService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchUserEvents(String userId) async {
-    QuerySnapshot snapshot = await _firestore.collection('events')
-      .where('userId', isEqualTo: userId)
-      .orderBy('timestamp', descending: true)
-      .orderBy('type', descending: false)
-      .get();
-    return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+  Future<List<Event>> fetchUserEvents(String userId) async {
+    try {
+      var snapshot = await FirebaseFirestore.instance
+        .collection('events')
+        .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true)
+        .limit(2)  // We only need the latest two events
+        .get();
+      return snapshot.docs.map((doc) => Event.fromJson(doc.data())).toList();
+    } catch (e) {
+      print('Failed to fetch user events: $e');
+      return [];
+    }
   }
 
   Future<Map<String, dynamic>> getFriendStatus(String friendId) async {
