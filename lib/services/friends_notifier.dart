@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/firebase_service.dart';
+import '../models/friend.dart';
 
 class FriendsNotifier extends StateNotifier<List<Friend>> {
   final FirebaseService _firebaseService;

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:beawake/utils/friend_code.dart';
 import '../models/awake_sleep_event.dart';
+import '../models/friend.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -303,26 +304,4 @@ class FirebaseService {
       throw Exception('No user found with this friend code');
     }
   }
-}
-
-class Friend {
-  final String id;
-  final String name;
-  final String email;
-  final String avatarUrl;
-  final String currentState;
-  final DateTime currentStateTime;
-  final String previousState;
-  final DateTime previousStateTime;
-
-  Friend({
-    required this.id,
-    required this.name,
-    required this.email,
-    required this.avatarUrl,
-    required this.currentState,
-    required this.currentStateTime,
-    required this.previousState,
-    required this.previousStateTime,
-  });
 }

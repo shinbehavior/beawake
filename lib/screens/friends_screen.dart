@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pull_to_refresh/pull_to_refresh.dart';
-import '../services/firebase_service.dart';
+import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import '../providers/providers.dart';
+import '../models/friend.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/awake_sleep_event.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -17,7 +15,6 @@ class FriendsScreen extends ConsumerStatefulWidget {
 }
 
 class _FriendsScreenState extends ConsumerState<FriendsScreen> {
-  final RefreshController _refreshController = RefreshController(initialRefresh: false);
   final TextEditingController _searchController = TextEditingController();
   String _userFriendCode = '';
 
@@ -38,9 +35,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     });
   }
 
-  void _onRefresh() async {
+  Future<void> _handleRefresh() async {
     await ref.read(friendsProvider.notifier).fetchFriends(widget.userId);
-    _refreshController.refreshCompleted();
   }
 
   void _showAddFriendDialog() {
@@ -136,9 +132,13 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
             ),
           ),
           Expanded(
-            child: SmartRefresher(
-              controller: _refreshController,
-              onRefresh: _onRefresh,
+            child: LiquidPullToRefresh(
+              onRefresh: _handleRefresh,
+              color: const Color(0xFF2C2C38),  // Adjust this color to match your theme
+              backgroundColor: Colors.blue[700],
+              height: 80,  // Reduced height
+              animSpeedFactor: 4,
+              showChildOpacityTransition: false,
               child: friends.isEmpty
                   ? _buildEmptyState()
                   : _buildFriendsList(friends),
@@ -169,33 +169,16 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
       itemCount: friends.length,
       itemBuilder: (context, index) {
         final friend = friends[index];
-        return FutureBuilder<List<Event>>(
-          future: ref.read(firebaseServiceProvider).fetchUserEvents(friend.id),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return _buildFriendListTile(friend, 'Loading...', '', Colors.grey);
-            }
-
-            if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-              return _buildFriendListTile(friend, 'Status unavailable', '', Colors.grey);
-            }
-
-            final events = snapshot.data!;
-            final latestEvent = events.first;
-            String previousEventType = events.length > 1 ? events[1].type : 'Unknown';
-
-            final stateColor = latestEvent.type == 'awake' ? Colors.green : Colors.blue;
-            final currentStateString = '${latestEvent.type.capitalize()} since ${_formatTime(DateTime.parse(latestEvent.timestamp))}';
-            final previousStateString = 'Last ${previousEventType.capitalize()} at ${events.length > 1 ? _formatTime(DateTime.parse(events[1].timestamp)) : 'Unknown'}';
-
-            return _buildFriendListTile(friend, currentStateString, previousStateString, stateColor);
-          },
-        );
+        return _buildFriendListTile(friend);
       },
     );
   }
 
-  Widget _buildFriendListTile(Friend friend, String mainStatus, String subStatus, Color stateColor) {
+  Widget _buildFriendListTile(Friend friend) {
+    final stateColor = friend.currentState == 'awake' ? Colors.green : Colors.blue;
+    final currentStateString = '${friend.currentState.capitalize()} since ${_formatTime(friend.currentStateTime)}';
+    final previousStateString = 'Last ${friend.previousState.capitalize()} at ${_formatTime(friend.previousStateTime)}';
+
     return ListTile(
       leading: CircleAvatar(
         backgroundImage: NetworkImage(friend.avatarUrl),
@@ -206,32 +189,31 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            mainStatus,
+            currentStateString,
             style: TextStyle(color: stateColor, fontSize: 14),
           ),
-          if (subStatus.isNotEmpty)
-            Text(
-              subStatus,
-              style: TextStyle(color: Colors.grey[400], fontSize: 12),
-            ),
+          Text(
+            previousStateString,
+            style: TextStyle(color: Colors.grey[400], fontSize: 12),
+          ),
         ],
       ),
       contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
     );
   }
 
-  String _formatTime(DateTime eventTime) {
+  String _formatTime(DateTime time) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(Duration(days: 1));
-    final eventDate = DateTime(eventTime.year, eventTime.month, eventTime.day);
+    final eventDate = DateTime(time.year, time.month, time.day);
 
     if (eventDate == today) {
-      return DateFormat('HH:mm').format(eventTime);
+      return DateFormat('HH:mm').format(time);
     } else if (eventDate == yesterday) {
-      return 'Yesterday ${DateFormat('HH:mm').format(eventTime)}';
+      return 'Yesterday ${DateFormat('HH:mm').format(time)}';
     } else {
-      return DateFormat('MMM d, HH:mm').format(eventTime);
+      return DateFormat('MMM d, HH:mm').format(time);
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/firebase_service.dart';
 import '../services/friends_notifier.dart';
+import '../models/friend.dart';
 
 final firebaseServiceProvider = Provider<FirebaseService>((ref) => FirebaseService());
 
