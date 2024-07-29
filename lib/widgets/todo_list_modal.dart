@@ -298,7 +298,7 @@ class _TodoListModalState extends ConsumerState<TodoListModal> {
                       Expanded(
                         child: Text(
                           _currentListName!,
-                          style: Theme.of(context).textTheme.headline6?.copyWith(color: Colors.white),
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),

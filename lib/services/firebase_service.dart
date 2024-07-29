@@ -4,6 +4,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:beawake/utils/friend_code.dart';
 import '../models/awake_sleep_event.dart';
 import '../models/friend.dart';
+import 'package:health/health.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -303,5 +304,20 @@ class FirebaseService {
     } else {
       throw Exception('No user found with this friend code');
     }
+  }
+
+  // HEALTH PACKAGE
+
+    Future<void> saveHealthEvent(String userId, HealthDataPoint healthData) async {
+    await _firestore.collection('health_events').add({
+      'userId': userId,
+      'type': healthData.type.name,
+      'value': healthData.value.toString(),
+      'unit': healthData.unit.name,
+      'dateFrom': healthData.dateFrom.toIso8601String(),
+      'dateTo': healthData.dateTo.toIso8601String(),
+      'sourceId': healthData.sourceId,
+      'sourceName': healthData.sourceName,
+    });
   }
 }

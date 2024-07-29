@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:health/health.dart';
 import '../models/awake_sleep_event.dart';
 import '../services/firebase_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/health_service.dart';
 
 final eventManagerProvider = ChangeNotifierProvider<EventManager>((ref) => EventManager(null));
 
@@ -13,8 +15,26 @@ class EventManager extends ChangeNotifier {
   String? userId;
   bool isAwake = true;
   final FirebaseService _firebaseService = FirebaseService();
+  final HealthService _healthService = HealthService();
+  List<HealthDataPoint> healthEvents = [];
 
   EventManager(this.userId);
+
+  Future<void> requestHealthAuthorization() async {
+    bool authorized = await _healthService.requestAuthorization();
+    if (authorized) {
+      await fetchHealthData();
+    }
+  }
+
+  Future<void> fetchHealthData() async {
+    final now = DateTime.now();
+    final oneWeekAgo = now.subtract(Duration(days: 7));
+    
+    healthEvents = await _healthService.fetchSleepData(oneWeekAgo, now);
+    healthEvents.sort((a, b) => b.dateTo.compareTo(a.dateTo));
+    notifyListeners();
+  }
 
   void setUserId(String userId) {
     if (this.userId != userId) {

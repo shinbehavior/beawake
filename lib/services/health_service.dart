@@ -18,16 +18,13 @@ class HealthService {
     return await _health.requestAuthorization(types, permissions: permissions);
   }
 
-  Future<List<HealthDataPoint>> fetchSleepData() async {
-    final now = DateTime.now();
-    final lastWeek = now.subtract(Duration(days: 7));
-
+  Future<List<HealthDataPoint>> fetchSleepData(DateTime startDate, DateTime endDate) async {
     final types = [
       HealthDataType.SLEEP_ASLEEP,
       HealthDataType.SLEEP_AWAKE,
       HealthDataType.SLEEP_IN_BED,
     ];
 
-    return await _health.getHealthDataFromTypes(startTime: lastWeek, endTime: now, types: types);
+    return await _health.getHealthDataFromTypes(startTime: startDate, endTime: endDate, types: types);
   }
 }

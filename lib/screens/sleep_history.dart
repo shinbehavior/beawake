@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/event_manager.dart';
-import '../models/awake_sleep_event.dart';
+import 'package:health/health.dart';
 import 'package:intl/intl.dart';
 
 class SleepHistoryScreen extends ConsumerWidget {
@@ -22,14 +22,14 @@ class SleepHistoryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSleepHistory(List<Event> events) {
+  Widget _buildSleepHistory(List<HealthDataPoint> events) {
     if (events.isEmpty) {
       return Center(child: Text('No sleep history available', style: TextStyle(color: Colors.white)));
     }
     // Group events by date
-    Map<String, List<Event>> groupedEvents = {};
+    Map<String, List<HealthDataPoint>> groupedEvents = {};
     for (var event in events) {
-      String date = DateFormat('yyyy-MM-dd').format(DateTime.parse(event.timestamp));
+      String date = DateFormat('yyyy-MM-dd').format(event.dateFrom);
       if (!groupedEvents.containsKey(date)) {
         groupedEvents[date] = [];
       }
@@ -39,19 +39,19 @@ class SleepHistoryScreen extends ConsumerWidget {
       itemCount: groupedEvents.length,
       itemBuilder: (context, index) {
         String date = groupedEvents.keys.elementAt(index);
-        List<Event> dayEvents = groupedEvents[date]!;
+        List<HealthDataPoint> dayEvents = groupedEvents[date]!;
         return _buildDayCard(date, dayEvents);
       },
     );
   }
 
-  Widget _buildDayCard(String date, List<Event> events) {
-    Event? sleepEvent = events.cast<Event?>().firstWhere(
-      (e) => e?.type == 'sleep',
+  Widget _buildDayCard(String date, List<HealthDataPoint> events) {
+    HealthDataPoint? sleepEvent = events.cast<HealthDataPoint?>().firstWhere(
+      (e) => e?.type == HealthDataType.SLEEP_ASLEEP,
       orElse: () => null
     );
-    Event? awakeEvent = events.cast<Event?>().firstWhere(
-      (e) => e?.type == 'awake',
+    HealthDataPoint? awakeEvent = events.cast<HealthDataPoint?>().firstWhere(
+      (e) => e?.type == HealthDataType.SLEEP_AWAKE,
       orElse: () => null
     );
 
@@ -80,7 +80,7 @@ class SleepHistoryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEventRow(String label, Event event, IconData icon) {
+  Widget _buildEventRow(String label, HealthDataPoint event, IconData icon) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -88,7 +88,7 @@ class SleepHistoryScreen extends ConsumerWidget {
           Icon(icon, color: Colors.white, size: 20),
           SizedBox(width: 8),
           Text(
-            '$label: ${DateFormat('HH:mm').format(DateTime.parse(event.timestamp))}',
+            '$label: ${DateFormat('HH:mm').format(event.dateFrom)}',
             style: TextStyle(color: Colors.white, fontSize: 16),
           ),
         ],
@@ -96,8 +96,8 @@ class SleepHistoryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSleepDuration(Event sleep, Event awake) {
-    Duration difference = DateTime.parse(awake.timestamp).difference(DateTime.parse(sleep.timestamp));
+  Widget _buildSleepDuration(HealthDataPoint sleep, HealthDataPoint awake) {
+    Duration difference = awake.dateFrom.difference(sleep.dateFrom);
     String duration = '${difference.inHours}h ${difference.inMinutes % 60}m';
     return Padding(
       padding: EdgeInsets.only(top: 8),
